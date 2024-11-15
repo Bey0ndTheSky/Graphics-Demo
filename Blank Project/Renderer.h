@@ -28,6 +28,7 @@ protected:
     GLuint terrainTex;
     GLuint waterTex;
     GLuint dispTex;
+    GLuint windTex;
     GLuint cubeMap;
 
     Frustum frameFrustum;
@@ -36,4 +37,7 @@ protected:
 
     float waterRotate;
     float waterCycle;
+
+    float windTranslate;
+    float windStrength;
 };

@@ -38,6 +38,11 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
         SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS
     );
 
+    windTex = SOIL_load_OGL_texture(
+        TEXTUREDIR "wind.png", SOIL_LOAD_AUTO,
+        SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS
+    );
+
     cubeMap = SOIL_load_OGL_cubemap(
         TEXTUREDIR "Epic_GloriousPink_Cam_2_Left+X.png", TEXTUREDIR "Epic_GloriousPink_Cam_3_Right-X.png",
         TEXTUREDIR "Epic_GloriousPink_Cam_4_Up+Y.png", TEXTUREDIR "Epic_GloriousPink_Cam_5_Down-Y.png",
@@ -50,6 +55,7 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 
     SetTextureRepeating(terrainTex, true);
     SetTextureRepeating(waterTex, true);
+    SetTextureRepeating(windTex, true);
 
     projMatrix = Matrix4::Perspective(1.0f, 80000.0f, (float)width / (float)height, 45.0f);
 
@@ -65,6 +71,9 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 
     waterRotate = 0.0f;
     waterCycle = 0.0f;
+    windTranslate = 0.0f;
+    windStrength = 0.5f;
+
     init = true;
 }
 
@@ -82,8 +91,13 @@ Renderer::~Renderer(void) {
 void Renderer::UpdateScene(float dt) {
     camera->UpdateCamera(dt);
     viewMatrix = camera->BuildViewMatrix();
-    waterRotate += dt * 1.0f;
+    
+    waterRotate += dt * 0.1f;
     waterCycle += dt * 0.05f;
+
+    windTranslate += dt * (0.02f + cos(dt * 0.01f) * 0.01f);
+    windStrength = 0.4f * sin(dt * 0.05f) * 0.35 ;
+
     frameFrustum.FromMatrix(projMatrix * viewMatrix);
 }
 
@@ -113,13 +127,20 @@ void Renderer::DrawGround() {
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, dispTex);
 
+    glUniform1i(glGetUniformLocation(groundShader->GetProgram(), "windMap"), 1);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, windTex);
+
     glUniform1f(glGetUniformLocation(groundShader->GetProgram(), "dispFactor"), 0.1f);
     glUniform1f(glGetUniformLocation(groundShader->GetProgram(), "grassHeight"), 20.0f);
     glUniform1f(glGetUniformLocation(groundShader->GetProgram(), "bladeWidth"), 5.0f);
 
+    glUniform1f(glGetUniformLocation(groundShader->GetProgram(), "windTraslate"), windTranslate);
+    glUniform1f(glGetUniformLocation(groundShader->GetProgram(), "windStrength"), windStrength);
+
     glUniform3fv(glGetUniformLocation(groundShader->GetProgram(), "cameraPosition"), 1, (float*)&camera->GetPosition());
-    glUniform4f(glGetUniformLocation(groundShader->GetProgram(), "colorBase"), 0.0f, 0.8f, 0.0f, 1.0f);  // Green
-    glUniform4f(glGetUniformLocation(groundShader->GetProgram(), "colorTop"), 1.0f, 1.0f, 0.0f, 1.0f);  // Yellow
+    glUniform4f(glGetUniformLocation(groundShader->GetProgram(), "colourBase"), 0.0f, 0.8f, 0.0f, 1.0f);  // Green
+    glUniform4f(glGetUniformLocation(groundShader->GetProgram(), "colourTop"), 1.0f, 1.0f, 0.0f, 1.0f);  // Yellow
 
     modelMatrix.ToIdentity();
     textureMatrix.ToIdentity();
@@ -159,8 +180,8 @@ void Renderer::DrawWater() {
     Vector3 hSize = heightMap->GetHeightmapSize();
 
     modelMatrix =
-        Matrix4::Translation((hSize - Vector3(0.0f, 2.4f * 255.0f, 0.0f))* 0.5f) *
-        Matrix4::Scale(hSize * 0.5f) *
+        Matrix4::Translation((hSize - Vector3(0.0f, 2.4f * 255.0f, 0.0f))* 0.52f) *
+        Matrix4::Scale(hSize * 0.52f) *
         Matrix4::Rotation(90, Vector3(-1, 0, 0));
 
     textureMatrix =
