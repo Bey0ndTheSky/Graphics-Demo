@@ -14,7 +14,7 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
         TEXTUREDIR "Barren RedsDOT3.JPG", SOIL_LOAD_AUTO,
         SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS);
 
-    shader = new Shader(" BumpVertex . glsl ", " BumpFragment . glsl ");
+    shader = new Shader("BumpVertex.glsl", "BumpFragment.glsl");
 
     if (!shader->LoadSuccess() || !texture || !bumpmap) {
         return;

@@ -10,7 +10,7 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
     camera = new Camera(-40, 270, Vector3());
 
     Vector3 dimensions = heightMap->GetHeightmapSize();
-    camera->SetPosition(dimensions * Vector3(0.5, 2, 0.5));
+    camera->SetPosition(dimensions * Vector3(0.5, 1, 0.5));
 
     groundShader = new Shader("HeightmapVertex.glsl", "HeightmapFragment.glsl", "heightmapGeometry.glsl",
         "groundTCS.glsl", "groundTES.glsl"
@@ -51,7 +51,7 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
     SetTextureRepeating(terrainTex, true);
     SetTextureRepeating(waterTex, true);
 
-    projMatrix = Matrix4::Perspective(1.0f, 10000.0f, (float)width / (float)height, 45.0f);
+    projMatrix = Matrix4::Perspective(1.0f, 80000.0f, (float)width / (float)height, 45.0f);
 
     glEnable(GL_DEPTH_TEST);
     glClipControl(GL_LOWER_LEFT,
@@ -82,7 +82,7 @@ Renderer::~Renderer(void) {
 void Renderer::UpdateScene(float dt) {
     camera->UpdateCamera(dt);
     viewMatrix = camera->BuildViewMatrix();
-    waterRotate += dt * 1.0f; //2 degrees a second
+    waterRotate += dt * 1.0f;
     waterCycle += dt * 0.05f;
     frameFrustum.FromMatrix(projMatrix * viewMatrix);
 }
@@ -159,7 +159,7 @@ void Renderer::DrawWater() {
     Vector3 hSize = heightMap->GetHeightmapSize();
 
     modelMatrix =
-        Matrix4::Translation((hSize - Vector3(0.0f, 2.5f * 255.0f, 0.0f))* 0.5f) *
+        Matrix4::Translation((hSize - Vector3(0.0f, 2.4f * 255.0f, 0.0f))* 0.5f) *
         Matrix4::Scale(hSize * 0.5f) *
         Matrix4::Rotation(90, Vector3(-1, 0, 0));
 

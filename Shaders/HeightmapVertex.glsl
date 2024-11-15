@@ -10,6 +10,7 @@ in vec2 texCoord;
 in vec4 colour;    
 in vec3 normal;
 in vec4 tangent;
+in vec2 displacement;
 
 out Vertex {
     vec2 texCoord;
@@ -18,6 +19,7 @@ out Vertex {
     vec3 tangent; 
     vec3 binormal;
 	vec3 worldPos;
+	vec2 displacement;
 } OUT;
 
 void main(void) {
@@ -35,6 +37,6 @@ void main(void) {
 
     vec4 worldPos = modelMatrix * vec4(position, 1.0);
     OUT.worldPos = worldPos.xyz;
-
+	OUT.displacement = displacement;
     gl_Position = vec4(position, 1.0);
 }

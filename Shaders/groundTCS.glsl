@@ -9,6 +9,7 @@ in Vertex {
     vec3 tangent; 
     vec3 binormal;
 	vec3 worldPos;
+	vec2 displacement;
 } IN[];
 
 out Vertex {
@@ -18,10 +19,12 @@ out Vertex {
     vec3 tangent; 
     vec3 binormal;
 	vec3 worldPos;
+	vec2 displacement;
 } OUT[];
 
 uniform mat4 viewMatrix;
 uniform vec3 cameraPosition;
+uniform vec3 hSize;
 
 float GetTessLevel(float distance0, float distance1)
 {
@@ -61,6 +64,9 @@ void main() {
 
 	OUT[gl_InvocationID].texCoord = IN[gl_InvocationID].texCoord;
     OUT[gl_InvocationID].colour = IN[gl_InvocationID].colour;
+	//OUT[gl_InvocationID].colour = mix(vec4(0.0, 0.0, 0.0, 1.0), vec4(1.0, 0.0, 0.0, 1.0), (IN[gl_InvocationID].texCoord.x / 10.24) ) 
+    //+ mix(vec4(0.0, 0.0, 0.0, 1.0), vec4(0.0, 1.0, 0.0, 1.0), (IN[gl_InvocationID].texCoord.y / 10.24));
+
 	//OUT[gl_InvocationID].colour = gl_TessLevelInner[0] >= 4.5 ? mix(vec4(0.0, 1.0, 0.0, 1.0), vec4(1.0, 0.0, 0.0, 1.0), (gl_TessLevelInner[0] - 4.5) / 1.5):
 	//mix(vec4(0.0, 0.0, 1.0, 1.0), vec4(0.0, 1.0, 0.0, 1.0), (gl_TessLevelInner[0] - 2.5) / (4.5 - 2.5));
     OUT[gl_InvocationID].normal = IN[gl_InvocationID].normal;

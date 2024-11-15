@@ -13,6 +13,7 @@ in Vertex {
     vec3 tangent; 
     vec3 binormal;
 	vec3 worldPos;
+	vec2 displacement;
 } IN[];
 
 out Vertex {
@@ -25,6 +26,7 @@ out Vertex {
 } OUT;
 
 uniform sampler2D DisplacementMap;
+uniform vec3 hSize;
 uniform float dispFactor;
 
 vec2 interpolate2D(vec2 v0, vec2 v1, vec2 v2)
@@ -52,7 +54,7 @@ void main() {
 	OUT.binormal = normalize(interpolate3D(IN[0].binormal, IN[1].binormal, IN[2].binormal));
 	OUT.worldPos = interpolate3D(IN[0].worldPos, IN[1].worldPos, IN[2].worldPos);
 	
-	float displacement = texture(DisplacementMap, OUT.texCoord.xy).x;
+	float displacement = texture(DisplacementMap, OUT.texCoord.xy / 10.24).x;
     OUT.worldPos += OUT.worldPos * displacement * dispFactor;
 		
     gl_Position = projMatrix * viewMatrix * vec4(OUT.worldPos, 1.0);
