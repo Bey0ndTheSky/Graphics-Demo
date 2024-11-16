@@ -2,7 +2,7 @@
 #include "Renderer.h"
 
 int main() {
-	Window w("Index Buffers!", 1280, 720, false);
+	Window w("Coursework!", 1600, 900, false);
 	if (!w.HasInitialised()) {
 		return -1;
 	}

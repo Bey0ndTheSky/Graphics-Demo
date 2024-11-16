@@ -10,10 +10,11 @@ in Vertex {
 out vec4 fragColour;
 
 void main(void) {
-    // Sample the texture color
+    
     vec4 textureColour = texture(diffuseTex, IN.texCoord);
     
-    // Blend the texture color with the vertex color
     fragColour = mix(vec4(0.0, 0.0, 0.0, 1.0),vec4(1.0, 0.0, 0.0, 1.0), IN.texCoord.x) 
 	+ mix(vec4(0.0, 0.0, 0.0, 1.0),vec4(0.0, 1.0, 0.0, 1.0), IN.texCoord.y);
+	
+	fragColour = textureColour + IN.colour;
 }

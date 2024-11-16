@@ -1,7 +1,9 @@
 #include "SceneNode.h"
+#include "MeshAnimation.h"
+#include "MeshMaterial.h"
 
 SceneNode::SceneNode(Mesh* mesh, Vector4 colour) {
-    this->mesh = mesh;
+    this->mesh = std::shared_ptr<Mesh>(mesh);
     this->colour = colour;
     parent = nullptr;
     boundingRadius = 1.0f;
