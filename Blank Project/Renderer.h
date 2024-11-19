@@ -29,6 +29,7 @@ public:
     void DrawGround();
     void DrawSkybox();
     void DrawWater();
+    void DrawReflect(SceneNode* n);
     void DrawAnim(SceneNode* n);
     void SetTextures();
     void SetShaders();

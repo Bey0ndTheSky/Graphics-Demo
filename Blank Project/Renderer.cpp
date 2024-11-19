@@ -40,6 +40,7 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
     frameTime = 0.0f;
 
     root1 = new SceneNode();
+    root2 = new SceneNode();
 
 
     SetMeshes();
@@ -178,12 +179,13 @@ void Renderer::DrawSkybox() {
 }
 
 void Renderer::DrawWater() {
-    BindShader(shaderVec[REFLECT_SHADER]);
+    shader = shaderVec[REFLECT_SHADER];
+    BindShader(shader);
 
-    glUniform3fv(glGetUniformLocation(shaderVec[REFLECT_SHADER]->GetProgram(), "cameraPos"), 1, (float*)&camera->GetPosition());
+    glUniform3fv(glGetUniformLocation(shader->GetProgram(), "cameraPos"), 1, (float*)&camera->GetPosition());
 
-    glUniform1i(glGetUniformLocation(shaderVec[REFLECT_SHADER]->GetProgram(), "diffuseTex"), 0);
-    glUniform1i(glGetUniformLocation(shaderVec[REFLECT_SHADER]->GetProgram(), "cubeTex"), 2);
+    glUniform1i(glGetUniformLocation(shader->GetProgram(), "diffuseTex"), 0);
+    glUniform1i(glGetUniformLocation(shader->GetProgram(), "cubeTex"), 2);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, waterTex);
@@ -212,42 +214,36 @@ void Renderer::DrawWater() {
 
 void Renderer::DrawNode(SceneNode* n) {
 
-    if (n->GetMesh() && shader != shaderVec[n->GetShader()]) {
+    if (!n->GetMesh()) { return; }
+
+    if (shader != shaderVec[n->GetShader()]) {
         shader = shaderVec[n->GetShader()];
         BindShader(shader);
-        //NEED TO ARRANGE SHADERS BETTER
     }
-    if (n->GetAnim() && n->GetMesh()) { DrawAnim(n); }
-
-    else if (n->GetMaterial() && n->GetMesh()) {
+    if (shader == shaderVec[SKINNING_SHADER]){ DrawAnim(n); }
+    else if (shader == shaderVec[REFLECT_SHADER]) { DrawReflect(n); }
+    else{
         modelMatrix = n->GetWorldTransform() * Matrix4::Scale(n->GetModelScale()) * n->GetRotation();
         UpdateShaderMatrices();
 
         glUniform1i(glGetUniformLocation(shader->GetProgram(), "diffuseTex"), 0);
         glUniform4fv(glGetUniformLocation(shader->GetProgram(), "nodeColour"), 1, (float*)&n->GetColour());
 
-        for (int i = 0; i < n->GetMesh()->GetSubMeshCount(); ++i) {
+        if (n->GetMaterial()) {
+            for (int i = 0; i < n->GetMesh()->GetSubMeshCount(); ++i) {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, (*n->matTextures)[i]);
+                n->GetMesh()->DrawSubMesh(i);
+            }
+        }
+        else {
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, (*n->matTextures)[i]);
-            n->GetMesh()->DrawSubMesh(i);
+            glBindTexture(GL_TEXTURE_2D, n->GetTexture());
+            for (int i = 0; i < n->GetMesh()->GetSubMeshCount(); ++i) {
+                n->GetMesh()->DrawSubMesh(i);
+            }
         }
-
-        //Mesh* sphere = Mesh::LoadFromMeshFile("Sphere.msh");
-
-        //n->Draw(*this);
-    }
-
-    else if (n->GetMesh()) {
-        modelMatrix = n->GetWorldTransform() * Matrix4::Scale(n->GetModelScale()) * n->GetRotation();
-
-        UpdateShaderMatrices();
-        glUniform1i(glGetUniformLocation(shader->GetProgram(), "diffuseTex"), 0);
-        glUniform4fv(glGetUniformLocation(shader->GetProgram(), "nodeColour"), 1, (float*)&n->GetColour());
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, n->GetTexture());
-        for (int i = 0; i < n->GetMesh()->GetSubMeshCount(); ++i) {
-            n->GetMesh()->DrawSubMesh(i);
-        }
+        
     }
 
 }
@@ -275,6 +271,34 @@ void Renderer::DrawAnim(SceneNode* n) {
         glBindTexture(GL_TEXTURE_2D, (*n->matTextures)[i]);
         n->GetMesh()->DrawSubMesh(i);
     }
+}
+
+void Renderer::DrawReflect(SceneNode* n) {
+    glUniform3fv(glGetUniformLocation(shader->GetProgram(), "cameraPos"), 1, (float*)&camera->GetPosition());
+
+    glUniform1i(glGetUniformLocation(shader->GetProgram(), "diffuseTex"), 0);
+    glUniform1i(glGetUniformLocation(shader->GetProgram(), "useIce"), 0);
+    glUniform1i(glGetUniformLocation(shader->GetProgram(), "cubeTex"), 2);
+
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, n->GetTexture());
+
+    modelMatrix = n->GetWorldTransform() * Matrix4::Scale(n->GetModelScale()) * n->GetRotation();
+    UpdateShaderMatrices();
+
+    if (n->GetMaterial()) {
+        for (int i = 0; i < n->GetMesh()->GetSubMeshCount(); ++i) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, (*n->matTextures)[i]);
+            n->GetMesh()->DrawSubMesh(i);
+        }
+    }
+    
+
+    Vector3 hSize = heightMap->GetHeightmapSize();
+
+    UpdateShaderMatrices();
+
 }
 
 void Renderer::SetShaders() {
@@ -309,7 +333,7 @@ void Renderer::SetTextures() {
         SOIL_FLAG_MIPMAPS);
 
     waterTex = SOIL_load_OGL_texture(
-        TEXTUREDIR "water.TGA", SOIL_LOAD_AUTO,
+        TEXTUREDIR "water.png", SOIL_LOAD_AUTO,
         SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS
     );
 
@@ -362,29 +386,31 @@ void Renderer::SetMeshes() {
     s->SetShader(SCENE_SHADER);
     s->SetMaterial(material, true);
     root1->AddChild(s);
-    std::shared_ptr<std::vector<GLuint>> loadedTex = s->matTextures;
 
-    material = new MeshMaterial("new/persona_4_-_television.prefab.mat");
+    sharedMesh = std::shared_ptr<Mesh>(Mesh::LoadFromMeshFile("new/persona_4_-_television.prefab.msh"));
+    material = new MeshMaterial("new/persona_4_-_television.prefab_trans.mat");
     s = new SceneNode();
     s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.3, 1.0, 0.24)));
     s->SetModelScale(Vector3(4.0f, 4.0f, 4.0f));
     s->SetRotation(Matrix4::Rotation(-90.0f, Vector3(0, 1, 0)));
     s->SetBoundingRadius(300.0f);
     s->SetMesh(sharedMesh);
-    s->SetShader(SCENE_SHADER);
-    s->SetMaterial(material);
-    s->matTextures = loadedTex;
+    s->SetShader(REFLECT_SHADER);
+    s->SetMaterial(material, true);
+    s->SetTexture(cubeMap1);
     root1->AddChild(s);
 
-    material = new MeshMaterial("new/persona_4_-_television.prefab.mat");
+    material = new MeshMaterial("new/persona_4_-_television.prefab_trans.mat");
+    std::shared_ptr<std::vector<GLuint>> loadedTex = s->matTextures;
     s = new SceneNode();
     s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.84, 1.7, 0.15)));
     s->SetModelScale(Vector3(10.0f, 10.0f, 10.0f));
     s->SetRotation(Matrix4::Rotation(-100.0f, Vector3(0, 1, 0)));
     s->SetBoundingRadius(750.0f);
     s->SetMesh(sharedMesh);
-    s->SetShader(SCENE_SHADER);
+    s->SetShader(REFLECT_SHADER);
     s->SetMaterial(material);
+    s->SetTexture(cubeMap2);
     s->matTextures = loadedTex;
     root1->AddChild(s);
 

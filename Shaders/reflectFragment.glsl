@@ -23,13 +23,17 @@ void main(void) {
 
     vec4 reflectTex = texture(cubeTex, reflectDir);
 	
-	if(!ice){
-    fragColour = reflectTex + (diffuse * 0.25f);
-	fragColour.a = 0.55f;
-	}
+	if (diffuse.a == 0.0f){fragColour = reflectTex;}
+	else if (diffuse.a == 1.0f){fragColour = diffuse;}
 	else{
-		fragColour = reflectTex + (diffuse * 0.1f);
-		fragColour = mix(vec4(0.7, 0.9, 1.0, 1.0), fragColour, 0.6f);
-		fragColour.a = 0.8f;
+		if(!ice){
+		fragColour = reflectTex + (diffuse * 0.25f);
+		fragColour.a = 0.55f;
+		}
+		else{
+			fragColour = reflectTex + (diffuse * 0.1f);
+			fragColour = mix(vec4(0.7, 0.9, 1.0, 1.0), fragColour, 0.6f);
+			fragColour.a = 0.8f;
+		}
 	}
 }
