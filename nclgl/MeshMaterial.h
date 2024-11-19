@@ -2,6 +2,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <memory>
 
 using std::map;
 using std::string;

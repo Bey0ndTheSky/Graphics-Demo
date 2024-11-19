@@ -9,6 +9,7 @@ public:
     ~HeightMap();
 
     Vector3 GetHeightmapSize() const { return heightmapSize; }
+    Vector3 GetWorldCoordinatesFromTextureCoords(float u, float v);
 
 protected:
     Vector3 heightmapSize;

@@ -10,6 +10,8 @@ SceneNode::SceneNode(Mesh* mesh, Vector4 colour) {
     distanceFromCamera = 0.0f;
     texture = 0;
     modelScale = Vector3(1, 1, 1);
+    modelRotation = Matrix4::Rotation(0, Vector3(0, 0, 0));
+    matTextures = std::make_shared<std::vector<GLuint>>();
 }
 
 SceneNode::~SceneNode() {
@@ -42,3 +44,25 @@ void SceneNode::Update(float dt) {
     }
 }
 
+void SceneNode::SetMaterial(std::shared_ptr<MeshMaterial> m, bool l) {
+    material = m;
+
+    if (l) {
+        for (int i = 0; i < mesh->GetSubMeshCount(); ++i) {
+            const MeshMaterialEntry* matEntry = m->GetMaterialForLayer(i);
+
+            const std::string* filename = nullptr;
+            if (matEntry->GetEntry("Diffuse", &filename)) {
+                std::string texturePath = TEXTUREDIR + *filename;
+                GLuint texID = SOIL_load_OGL_texture(texturePath.c_str(), SOIL_LOAD_AUTO,
+                    SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y);
+                if (texID != 0) {
+                    this->matTextures->emplace_back(texID);
+                }
+                else {
+                    std::cerr << "Failed to load texture: " << texturePath << std::endl;
+                }
+            }
+        }
+    }
+}

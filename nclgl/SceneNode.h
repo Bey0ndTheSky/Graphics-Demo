@@ -10,7 +10,7 @@ class MeshMaterial;
 
 class SceneNode {
 public:
-    SceneNode(Mesh* m = nullptr, Vector4 colour = Vector4(1, 1, 1, 1));
+    SceneNode(Mesh* m = nullptr, Vector4 colour = Vector4(0, 0, 0, 0));
     //SceneNode(std::shared_ptr<Mesh>, Vector4 colour = Vector4(1, 1, 1, 1));
     ~SceneNode();
 
@@ -18,20 +18,28 @@ public:
     const Matrix4& GetTransform() const { return transform; }
     Matrix4 GetWorldTransform() const { return worldTransform; }
 
+    void SetRotation(const Matrix4& matrix) { modelRotation = matrix; }
+    const Matrix4& GetRotation() const { return modelRotation; }
+
     Vector4 GetColour() const { return colour; }
     void SetColour(Vector4 c) { colour = c; }
+
+    int GetShader() const { return shader; }
+    void SetShader(int s) { shader = s; }
 
     Vector3 GetModelScale() const { return modelScale; }
     void SetModelScale(Vector3 s) { modelScale = s; }
 
     Mesh* GetMesh() const { return mesh.get(); }
     void SetMesh(Mesh* m) { mesh = std::shared_ptr<Mesh>(m); }
+    void SetMesh(std::shared_ptr<Mesh> m) { mesh = m; }
 
     MeshAnimation* GetAnim() const { return anim; }
     void SetAnim(MeshAnimation* a) { anim = a; }
     
     MeshMaterial* GetMaterial() const { return material.get(); }
-    void SetMaterial(MeshMaterial* m) { material = std::shared_ptr<MeshMaterial>(m); }
+    void SetMaterial(MeshMaterial* m, bool l = false) { SetMaterial(std::shared_ptr<MeshMaterial>(m), l); }
+    void SetMaterial(std::shared_ptr<MeshMaterial> m, bool l = false);
 
     float GetBoundingRadius() const { return boundingRadius; }
     void SetBoundingRadius(float f) { boundingRadius = f; }
@@ -42,7 +50,7 @@ public:
     void SetTexture(GLuint tex) { texture = tex; }
     GLuint GetTexture() const { return texture; }
 
-    static bool CompareByCameraDistance(SceneNode* a, SceneNode* b) {
+    static const bool CompareByCameraDistance(const SceneNode* a, const SceneNode* b) {
         return a->distanceFromCamera < b->distanceFromCamera;
     }
 
@@ -58,7 +66,7 @@ public:
         return children.end();
     }
 
-    std::vector<GLuint> matTextures;
+    std::shared_ptr<std::vector<GLuint>> matTextures;
 
 protected:
     SceneNode* parent;
@@ -67,6 +75,7 @@ protected:
     Matrix4 worldTransform;
     Matrix4 transform;
     Vector3 modelScale;
+    Matrix4 modelRotation;
     Vector4 colour;
     float distanceFromCamera;
     float boundingRadius;

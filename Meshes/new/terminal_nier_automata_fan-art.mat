@@ -4,9 +4,9 @@ MeshMat
 3
 Terminal
 3
-Diffuse:/terminal_nier_automata_fan-art.zip
-Bump:/terminal_nier_automata_fan-art.zip
-Metallic:/terminal_nier_automata_fan-art.zip
+Diffuse:/terminal/Terminal_baseColor.png
+Bump:/terminal/Terminal_normal.png
+Metallic:/terminal/Terminal_metallicRoughness.png
 0
 0
 0

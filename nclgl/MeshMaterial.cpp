@@ -62,7 +62,7 @@ MeshMaterial::MeshMaterial(const std::string& filename) {
 }
 
 const MeshMaterialEntry* MeshMaterial::GetMaterialForLayer(int i) const {
-	if (i < 0 || i >= (int)meshLayers.size()) {
+	if (i < 0 || i >= (int) meshLayers.size()) {
 		return nullptr;
 	}
 	return meshLayers[i];

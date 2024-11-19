@@ -1,5 +1,6 @@
 #include "HeightMap.h"
 #include <iostream>
+#include <algorithm>
 
 HeightMap::HeightMap(const std::string& name) {
     int iWidth, iHeight, iChans;
@@ -59,4 +60,32 @@ HeightMap::HeightMap(const std::string& name) {
 }
 
 HeightMap::~HeightMap() {
+}
+
+Vector3 HeightMap::GetWorldCoordinatesFromTextureCoords(float u, float v) {
+
+    int iWidth, iHeight, iChans;
+    Vector3 vertexScale = Vector3(50.0f, 3.5f, 50.0f);
+    Vector2 textureScale = Vector2(1 / 50.0f, 1.0f / 50.0f);
+
+    unsigned char* data = SOIL_load_image(TEXTUREDIR "valleyTex.png", &iWidth, &iHeight, &iChans, 1);
+
+    if (!data) {
+        std::cout << "Heightmap can't load file!\n";
+        return Vector3(0, 0, 0);
+    }
+
+    // First, we need to map (u, v) to the terrain grid
+    int x = static_cast<int>(u * (heightmapSize.x / vertexScale.x)); // Get the x grid index
+    int z = static_cast<int>(v * (heightmapSize.z / vertexScale.z)); // Get the z grid index
+
+    // Fetch the height value at (x, z)
+    int index = (z * iWidth) + x;
+    float height = vertices[index].y;  // This stores the height value (y coordinate)
+
+    // The world-space position of the point is calculated using the vertex scale.
+    // We apply the scaling that was used when creating the terrain.
+    Vector3 worldPosition = Vector3(x, height, z) * vertexScale;
+
+    return worldPosition;
 }

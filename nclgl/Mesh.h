@@ -34,7 +34,8 @@ enum MeshBuffer {
 	WEIGHTVALUE_BUFFER,		//new this year, weight values of vertices
 	WEIGHTINDEX_BUFFER,	//new this year, indices of weights
 
-	INDEX_BUFFER	,
+	INDEX_BUFFER,
+	INSTANCE_TRANSFORM_BUFFER,
 
 	MAX_BUFFER
 };
@@ -51,6 +52,9 @@ public:
 
 	void Draw();
 	void DrawSubMesh(int i);
+	void DrawSubMeshInstanced(int i);
+
+	void DrawInstanced();
 
 	static Mesh* LoadFromMeshFile(const std::string& name);
 
@@ -83,6 +87,8 @@ public:
 		return (int)meshLayers.size(); 
 	}
 
+	void SetInstances(Vector3* instanceTransforms, int instances);
+
 	void GenerateNormals();
 	bool GetVertexIndicesForTri(unsigned int i, unsigned int& a, unsigned int& b, unsigned int& c) const;
 	void GenerateTangents();
@@ -101,6 +107,7 @@ protected:
 
 	GLuint	numVertices;
 	GLuint	numIndices;
+	GLuint	numInstances;
 	
 	GLuint	type;
 
@@ -114,6 +121,8 @@ protected:
 	int*			weightIndices;
 
 	unsigned int*	indices;
+
+	Vector3* instancePositions;
 
 	Matrix4* bindPose;
 	Matrix4* inverseBindPose;

@@ -3,6 +3,7 @@
 uniform sampler2D diffuseTex;
 uniform samplerCube cubeTex;
 uniform vec3 cameraPos;
+uniform bool ice;
 
 in Vertex {
     vec4 colour;
@@ -21,7 +22,14 @@ void main(void) {
     vec3 reflectDir = reflect(-viewDir, normalize(IN.normal));
 
     vec4 reflectTex = texture(cubeTex, reflectDir);
-
+	
+	if(!ice){
     fragColour = reflectTex + (diffuse * 0.25f);
 	fragColour.a = 0.55f;
+	}
+	else{
+		fragColour = reflectTex + (diffuse * 0.1f);
+		fragColour = mix(vec4(0.7, 0.9, 1.0, 1.0), fragColour, 0.6f);
+		fragColour.a = 0.8f;
+	}
 }

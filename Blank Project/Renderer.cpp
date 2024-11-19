@@ -13,7 +13,7 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
     camera = new Camera(-40, 270, Vector3());
 
     Vector3 dimensions = heightMap->GetHeightmapSize();
-    camera->SetPosition(dimensions * Vector3(0.5, 1, 0.5));
+    camera->SetPosition(dimensions * Vector3(0.2, 1, 0.2));
 
 
     SetShaders();
@@ -39,7 +39,7 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
     currentFrame = 0;
     frameTime = 0.0f;
 
-    root = new SceneNode();
+    root1 = new SceneNode();
 
 
     SetMeshes();
@@ -50,7 +50,7 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 Renderer::~Renderer(void) {
     delete heightMap;
     delete camera;
-    delete root;
+    delete root1;
     delete quad;
     delete anim;
 
@@ -77,24 +77,42 @@ void Renderer::UpdateScene(float dt) {
     windStrength = 0.3f * sin(dt * 0.05f) * 0.29 ;
 
     frameFrustum.FromMatrix(projMatrix * viewMatrix);
-    root->Update(dt);
+    root1->Update(dt);
 }
 
 void Renderer::RenderScene() {
-    BuildNodeLists(root);
-    SortNodeLists();
-
+    
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     glEnable(GL_STENCIL_TEST);
     glStencilFunc(GL_ALWAYS, 2, ~0);
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    
+    if (activeScene) {
+        BuildNodeLists(activeScene ? root1 : root2);
+        SortNodeLists();
 
-    DrawGround();
+        DrawGround();
 
-    DrawNodes();
-    ClearNodeLists();
+        
+        shader = shaderVec[SCENE_SHADER];
+        BindShader(shaderVec[SCENE_SHADER]);
+        DrawNodes();
+        ClearNodeLists();
 
-    DrawWater();
+        DrawWater();
+    }
+    else {
+        BuildNodeLists(root2);
+        SortNodeLists();
+
+        BindShader(shaderVec[SCENE_SHADER]);
+        DrawGround();
+        DrawNodes();
+        ClearNodeLists();
+
+        DrawWater();
+    }
+    
 
     DrawSkybox();
     glDisable(GL_STENCIL_TEST);
@@ -102,37 +120,44 @@ void Renderer::RenderScene() {
 }
 
 void Renderer::DrawGround() {
-    BindShader(shaderVec[GROUND_SHADER]);
-    UpdateShaderMatrices();
 
-    glUniform1i(glGetUniformLocation(shaderVec[GROUND_SHADER]->GetProgram(), "diffuseTex"), 0);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, terrainTex);
+    if (activeScene) {
+        shader = shaderVec[GROUND_SHADER];
+        BindShader(shader);
+        
+        glUniform1i(glGetUniformLocation(shader->GetProgram(), "diffuseTex"), 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, terrainTex);
 
-    glUniform1i(glGetUniformLocation(shaderVec[GROUND_SHADER]->GetProgram(), "DisplacementMap"), 1);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, dispTex);
+        glUniform1i(glGetUniformLocation(shader->GetProgram(), "DisplacementMap"), 1);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, dispTex);
 
-    glUniform1i(glGetUniformLocation(shaderVec[GROUND_SHADER]->GetProgram(), "windMap"), 1);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, windTex);
+        glUniform1i(glGetUniformLocation(shader->GetProgram(), "windMap"), 1);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, windTex);
 
-    glUniform1f(glGetUniformLocation(shaderVec[GROUND_SHADER]->GetProgram(), "dispFactor"), 0.1f);
-    glUniform1f(glGetUniformLocation(shaderVec[GROUND_SHADER]->GetProgram(), "grassHeight"), 25.0f);
-    glUniform1f(glGetUniformLocation(shaderVec[GROUND_SHADER]->GetProgram(), "bladeWidth"), 5.0f);
+        glUniform1f(glGetUniformLocation(shader->GetProgram(), "dispFactor"), 0.1f);
+        glUniform1f(glGetUniformLocation(shader->GetProgram(), "grassHeight"), 25.0f);
+        glUniform1f(glGetUniformLocation(shader->GetProgram(), "bladeWidth"), 5.0f);
 
-    glUniform1f(glGetUniformLocation(shaderVec[GROUND_SHADER]->GetProgram(), "windTraslate"), windTranslate);
-    glUniform1f(glGetUniformLocation(shaderVec[GROUND_SHADER]->GetProgram(), "windStrength"), windStrength);
+        glUniform1f(glGetUniformLocation(shader->GetProgram(), "windTraslate"), windTranslate);
+        glUniform1f(glGetUniformLocation(shader->GetProgram(), "windStrength"), windStrength);
 
-    glUniform3fv(glGetUniformLocation(shaderVec[GROUND_SHADER]->GetProgram(), "cameraPosition"), 1, (float*)&camera->GetPosition());
-    glUniform4f(glGetUniformLocation(shaderVec[GROUND_SHADER]->GetProgram(), "colourBase"), 0.0f, 0.8f, 0.0f, 1.0f);  // Green
-    glUniform4f(glGetUniformLocation(shaderVec[GROUND_SHADER]->GetProgram(), "colourTop"), 1.0f, 1.0f, 0.0f, 1.0f);  // Yellow
+        glUniform3fv(glGetUniformLocation(shader->GetProgram(), "cameraPosition"), 1, (float*)&camera->GetPosition());
+        glUniform4f(glGetUniformLocation(shader->GetProgram(), "colourBase"), 0.0f, 0.8f, 0.0f, 1.0f);  // Green
+        glUniform4f(glGetUniformLocation(shader->GetProgram(), "colourTop"), 1.0f, 1.0f, 0.0f, 1.0f);  // Yellow
+    }
+
+    else {
+
+
+    }
 
     modelMatrix.ToIdentity();
     textureMatrix.ToIdentity();
 
     UpdateShaderMatrices();
-
     heightMap->Draw();
 }
 
@@ -161,7 +186,7 @@ void Renderer::DrawWater() {
     glBindTexture(GL_TEXTURE_2D, waterTex);
 
     glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, activeScene ? cubeMap1 : cubeMap2);
 
     Vector3 hSize = heightMap->GetHeightmapSize();
 
@@ -183,30 +208,48 @@ void Renderer::DrawWater() {
 }
 
 void Renderer::DrawNode(SceneNode* n) {
+
+    if (n->GetMesh() && shader != shaderVec[n->GetShader()]) {
+        shader = shaderVec[n->GetShader()];
+        BindShader(shader);
+    }
     if (n->GetAnim() && n->GetMesh()) { DrawAnim(n); }
 
-    else if (n->GetMesh()) {
-        BindShader(shaderVec[SCENE_SHADER]);
-
-        modelMatrix = n->GetWorldTransform() * Matrix4::Scale(n->GetModelScale());
+    else if (n->GetMaterial() && n->GetMesh()) {
+        modelMatrix = n->GetWorldTransform() * Matrix4::Scale(n->GetModelScale()) * n->GetRotation();
         UpdateShaderMatrices();
 
-        glUniform1i(glGetUniformLocation(shaderVec[SCENE_SHADER]->GetProgram(), "diffuseTex"), 0);
+        glUniform1i(glGetUniformLocation(shader->GetProgram(), "diffuseTex"), 0);
+        glUniform4fv(glGetUniformLocation(shader->GetProgram(), "nodeColour"), 1, (float*)&n->GetColour());
 
         for (int i = 0; i < n->GetMesh()->GetSubMeshCount(); ++i) {
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, n->matTextures[i]);
+            glBindTexture(GL_TEXTURE_2D, (*n->matTextures)[i]);
             n->GetMesh()->DrawSubMesh(i);
         }
 
+        //Mesh* sphere = Mesh::LoadFromMeshFile("Sphere.msh");
+
         //n->Draw(*this);
     }
+
+    else if (n->GetMesh()) {
+        modelMatrix = n->GetWorldTransform() * Matrix4::Scale(n->GetModelScale()) * n->GetRotation();
+
+        UpdateShaderMatrices();
+
+        glUniform1i(glGetUniformLocation(shaderVec[SCENE_SHADER]->GetProgram(), "diffuseTex"), 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, n->GetTexture());
+        for (int i = 0; i < n->GetMesh()->GetSubMeshCount(); ++i) {
+            n->GetMesh()->DrawSubMesh(i);
+        }
+    }
+
 }
 
 void Renderer::DrawAnim(SceneNode* n) {
-    BindShader(shaderVec[SKINNING_SHADER]);
-
-    modelMatrix = n->GetWorldTransform() * Matrix4::Scale(n->GetModelScale());
+    modelMatrix = n->GetWorldTransform() * Matrix4::Scale(n->GetModelScale()) * n->GetRotation();
     UpdateShaderMatrices();
 
     glUniform1i(glGetUniformLocation(shaderVec[SKINNING_SHADER]->GetProgram(), "diffuseTex"), 0);
@@ -225,7 +268,7 @@ void Renderer::DrawAnim(SceneNode* n) {
 
     for (int i = 0; i < n->GetMesh()->GetSubMeshCount(); ++i) {
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, n->matTextures[i]);
+        glBindTexture(GL_TEXTURE_2D, (*n->matTextures)[i]);
         n->GetMesh()->DrawSubMesh(i);
     }
 }
@@ -237,6 +280,7 @@ void Renderer::SetShaders() {
     new Shader("skyboxVertex.glsl", "skyboxFragment.glsl"),
     new Shader("reflectVertex.glsl", "reflectFragment.glsl"),
     new Shader("TexturedColouredVertex.glsl", "TexturedColouredFragment.glsl"),
+    new Shader("TexturedColouredVertexInstanced.glsl", "TexturedColouredFragment.glsl"),
     new Shader("SkinningVertex.glsl", "TexturedFragment.glsl")
     };
 
@@ -269,74 +313,113 @@ void Renderer::SetTextures() {
         TEXTUREDIR "wind.png", SOIL_LOAD_AUTO,
         SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS
     );
-
-    cubeMap = SOIL_load_OGL_cubemap(
+    cubeMap1 = SOIL_load_OGL_cubemap(
         TEXTUREDIR "Epic_GloriousPink_Cam_2_Left+X.png", TEXTUREDIR "Epic_GloriousPink_Cam_3_Right-X.png",
         TEXTUREDIR "Epic_GloriousPink_Cam_4_Up+Y.png", TEXTUREDIR "Epic_GloriousPink_Cam_5_Down-Y.png",
         TEXTUREDIR "Epic_GloriousPink_Cam_0_Front+Z.png", TEXTUREDIR "Epic_GloriousPink_Cam_1_Back-Z.png",
         SOIL_LOAD_RGB, SOIL_CREATE_NEW_ID, 0
     );
-    if (!terrainTex || !cubeMap || !dispTex || !waterTex) {
+    cubeMap2 = SOIL_load_OGL_cubemap(
+        TEXTUREDIR "Sky_AllSky_Overcast4_Low_Cam_2_Left+X.png", TEXTUREDIR "Sky_AllSky_Overcast4_Low_Cam_3_Right-X.png",
+        TEXTUREDIR "Sky_AllSky_Overcast4_Low_Cam_4_Up+Y.png", TEXTUREDIR "Sky_AllSky_Overcast4_Low_Cam_5_Down-Y.png",
+        TEXTUREDIR "Sky_AllSky_Overcast4_Low_Cam_0_Front+Z.png", TEXTUREDIR "Sky_AllSky_Overcast4_Low_Cam_1_Back-Z.png",
+        SOIL_LOAD_RGB, SOIL_CREATE_NEW_ID, 0
+    );
+
+    if (!terrainTex || !cubeMap1 || !dispTex || !waterTex) {
         return;
     }
 
     SetTextureRepeating(terrainTex, true);
     SetTextureRepeating(waterTex, true);
     SetTextureRepeating(windTex, true);
-
 }
 
 void Renderer::SetMeshes() {
-
-    mesh = Mesh::LoadFromMeshFile("Role_T.msh");
     anim = new MeshAnimation("Role_T.anm");
-    material = new MeshMaterial("Role_T.mat");
 
-    SceneNode* guy = new SceneNode();
-    guy->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.5, 0.5, 0.5)));
-    guy->SetModelScale(Vector3(100.0f, 100.0f, 100.0f));
-    guy->SetBoundingRadius(100.0f);
-    guy->SetMesh(mesh);
-    guy->SetAnim(anim);
-    guy->SetMaterial(material);
-    //root->AddChild(guy);
-
-    for (int i = 0; i < mesh->GetSubMeshCount(); ++i) {
-        const MeshMaterialEntry* matEntry = material->GetMaterialForLayer(i);
-
-        const string* filename = nullptr;
-        matEntry->GetEntry("Diffuse", &filename);
-
-        string path = TEXTUREDIR + *filename;
-        GLuint texID = SOIL_load_OGL_texture(path.c_str(), SOIL_LOAD_AUTO,
-            SOIL_CREATE_NEW_ID,
-            SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y);
-        guy->matTextures.emplace_back(texID);
-    }
-
-    mesh = Mesh::LoadFromMeshFile("new/persona_4_-_television.prefab.msh");
-    material = new MeshMaterial("new/persona_4_-_television.prefab.mat");
-
-    SceneNode* s = new SceneNode();
-    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.5, 2.0, 0.5)));
-    s->SetModelScale(Vector3(10.0f, 10.0f, 10.0f));
+    SceneNode* s = loadMeshAndMaterial("Role_T.msh", "Role_T.mat");
+    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.5, 0.5, 0.5)));
+    s->SetModelScale(Vector3(100.0f, 100.0f, 100.0f));
     s->SetBoundingRadius(100.0f);
     s->SetMesh(mesh);
+    s->SetAnim(anim);
+    s->SetShader(SKINNING_SHADER);
+    //root1->AddChild(guy);
+
+    std::shared_ptr<Mesh> sharedMesh = std::shared_ptr<Mesh>(Mesh::LoadFromMeshFile("new/persona_4_-_television.prefab.msh"));
+    material = new MeshMaterial("new/persona_4_-_television.prefab.mat");
+    
+    s = new SceneNode();
+    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.45, 0.82, 0.45)));
+    s->SetModelScale(Vector3(2.0f, 2.0f, 2.0f));
+    s->SetBoundingRadius(150.0f);
+    s->SetMesh(sharedMesh);
+    s->SetShader(SCENE_SHADER);
+    s->SetMaterial(material, true);
+    root1->AddChild(s);
+    std::shared_ptr<std::vector<GLuint>> loadedTex = s->matTextures;
+
+    material = new MeshMaterial("new/persona_4_-_television.prefab.mat");
+    s = new SceneNode();
+    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.3, 1.0, 0.24)));
+    s->SetModelScale(Vector3(4.0f, 4.0f, 4.0f));
+    s->SetRotation(Matrix4::Rotation(-90.0f, Vector3(0, 1, 0)));
+    s->SetBoundingRadius(300.0f);
+    s->SetMesh(sharedMesh);
+    s->SetShader(SCENE_SHADER);
     s->SetMaterial(material);
-    root->AddChild(s);
+    s->matTextures = loadedTex;
+    root1->AddChild(s);
 
-    for (int i = 0; i < mesh->GetSubMeshCount(); ++i) {
-        const MeshMaterialEntry* matEntry = material->GetMaterialForLayer(i);
+    material = new MeshMaterial("new/persona_4_-_television.prefab.mat");
+    s = new SceneNode();
+    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.84, 1.7, 0.15)));
+    s->SetModelScale(Vector3(10.0f, 10.0f, 10.0f));
+    s->SetRotation(Matrix4::Rotation(-100.0f, Vector3(0, 1, 0)));
+    s->SetBoundingRadius(750.0f);
+    s->SetMesh(sharedMesh);
+    s->SetShader(SCENE_SHADER);
+    s->SetMaterial(material);
+    s->matTextures = loadedTex;
+    root1->AddChild(s);
 
-        const string* filename = nullptr;
-        matEntry->GetEntry("Diffuse", &filename);
+    mesh = Mesh::LoadFromMeshFile("new/lunar_tear.msh");
+    s = new SceneNode();
+    root1->AddChild(s);
+    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.728f, 0.22, 0.2f)));
+    s->SetBoundingRadius(1000.0f);
+    s->SetModelScale(Vector3(2000.0f, 2000.0f, 2000.0f));
+    s->SetRotation(Matrix4::Rotation(-60.0f, Vector3(0, 1, 0)));
+    s->SetColour(Vector4(1.0f, 1.0f, 1.0f, 1.0f));
+    s->SetShader(SCENE_INSTANCED_SHADER);
+    mesh->SetInstances(flowerPos, 20);
+    s->SetMesh(mesh);
 
-        string path = TEXTUREDIR + *filename;
-        GLuint texID = SOIL_load_OGL_texture(path.c_str(), SOIL_LOAD_AUTO,
-            SOIL_CREATE_NEW_ID,
-            SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y);
-        s->matTextures.emplace_back(texID);
-    }
+    s = loadMeshAndMaterial("new/door (4).msh", "new/door (4).mat");
+    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.5, 0.8, 0.95)));
+    s->SetModelScale(Vector3(3.0f, 3.0f, 3.0f));
+    s->SetShader(SCENE_SHADER);
+    s->SetBoundingRadius(1300.0f);
+    root1->AddChild(s);
+
+    s = loadMeshAndMaterial("new/door (1).msh", "new/door (1).mat");
+    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.95, 1.71, 0.65)));
+    s->SetRotation(Matrix4::Rotation(-90.0f, Vector3(0, 1, 0)));
+    s->SetModelScale(Vector3(3.0f, 3.0f, 3.0f));
+    s->SetBoundingRadius(250.0f);
+    s->SetShader(SCENE_SHADER);
+    root1->AddChild(s);
+
+    anim = new MeshAnimation("new/terminal_nier_automata_fan-art.anm");
+    s = loadMeshAndMaterial("new/terminal_nier_automata_fan-art.msh", "new/terminal_nier_automata_fan-art.mat");
+    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.15, 0.3, 0.1)));
+    s->SetRotation(Matrix4::Rotation(150.0f, Vector3(0, 1, 0)));
+    s->SetModelScale(Vector3(200.0f, 200.0f, 200.0f));
+    s->SetBoundingRadius(200.0f);
+    s->SetAnim(anim);
+    s->SetShader(SKINNING_SHADER);
+    root1->AddChild(s);
 }
 
 void Renderer::BuildNodeLists(SceneNode* from) {
@@ -360,10 +443,22 @@ void Renderer::BuildNodeLists(SceneNode* from) {
 
 void Renderer::SortNodeLists() {
     std::sort(transparentNodeList.rbegin(), transparentNodeList.rend(),
-        SceneNode::CompareByCameraDistance);
+        [](const SceneNode* a, const SceneNode* b) {
+            if (a->GetShader() != b->GetShader()) {
+                return a->GetShader() < b->GetShader(); 
+            }
+            return SceneNode::CompareByCameraDistance(a, b);
+        });
+
     std::sort(nodeList.begin(), nodeList.end(),
-        SceneNode::CompareByCameraDistance);
+        [](const SceneNode* a, const SceneNode* b) {
+            if (a->GetShader() != b->GetShader()) {
+                return a->GetShader() < b->GetShader();  
+            }
+            return SceneNode::CompareByCameraDistance(a, b);
+        });
 }
+
 
 void Renderer::DrawNodes() {
     for (const auto& i : nodeList) {
@@ -377,4 +472,26 @@ void Renderer::DrawNodes() {
 void Renderer::ClearNodeLists() {
     transparentNodeList.clear();
     nodeList.clear();
+}
+
+SceneNode* Renderer::loadMeshAndMaterial(const std::string& meshFile, const std::string& materialFile) {
+    std::shared_ptr<Mesh> mesh = std::shared_ptr<Mesh>(Mesh::LoadFromMeshFile(meshFile));
+    if (!mesh) {
+        std::cerr << "Failed to load mesh: " << meshFile << std::endl;
+    }
+
+    SceneNode* node = new SceneNode();
+    node->SetBoundingRadius(100.0f);
+    node->SetMesh(mesh);
+    node->SetShader(SCENE_SHADER);
+
+    if (materialFile == "") {  
+        std::cerr << "Failed to load material: " << materialFile << std::endl;
+    }
+    else
+    {
+        MeshMaterial* material = new MeshMaterial(materialFile);
+        node->SetMaterial(material, true);
+    }
+    return node;
 }

@@ -1,6 +1,7 @@
 #version 330 core
 
 uniform sampler2D diffuseTex;
+uniform vec4 nodeColour;
 
 in Vertex {
     vec2 texCoord;  
@@ -13,8 +14,11 @@ void main(void) {
     
     vec4 textureColour = texture(diffuseTex, IN.texCoord);
     
-    fragColour = mix(vec4(0.0, 0.0, 0.0, 1.0),vec4(1.0, 0.0, 0.0, 1.0), IN.texCoord.x) 
-	+ mix(vec4(0.0, 0.0, 0.0, 1.0),vec4(0.0, 1.0, 0.0, 1.0), IN.texCoord.y);
-	
-	fragColour = textureColour + IN.colour;
+    if (length(IN.colour.rgb) > 0.1) {
+        fragColour = mix(textureColour, IN.colour, 0.15);
+    } 
+	else {
+        fragColour = textureColour;
+    }   
+	fragColour += nodeColour;
 }
