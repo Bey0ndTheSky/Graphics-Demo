@@ -166,8 +166,11 @@ void Renderer::DrawSkybox() {
 
     glStencilFunc(GL_EQUAL, 0, ~0);
     glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-
-    BindShader(shaderVec[SKYBOX_SHADER]);
+    shader = shaderVec[SKYBOX_SHADER];
+    BindShader(shader);
+    glUniform1i(glGetUniformLocation(shader->GetProgram(), "cubeTex"), 2);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, activeScene ? cubeMap1 : cubeMap2);
     UpdateShaderMatrices();
     quad->Draw();
 
@@ -212,6 +215,7 @@ void Renderer::DrawNode(SceneNode* n) {
     if (n->GetMesh() && shader != shaderVec[n->GetShader()]) {
         shader = shaderVec[n->GetShader()];
         BindShader(shader);
+        //NEED TO ARRANGE SHADERS BETTER
     }
     if (n->GetAnim() && n->GetMesh()) { DrawAnim(n); }
 
@@ -237,8 +241,8 @@ void Renderer::DrawNode(SceneNode* n) {
         modelMatrix = n->GetWorldTransform() * Matrix4::Scale(n->GetModelScale()) * n->GetRotation();
 
         UpdateShaderMatrices();
-
-        glUniform1i(glGetUniformLocation(shaderVec[SCENE_SHADER]->GetProgram(), "diffuseTex"), 0);
+        glUniform1i(glGetUniformLocation(shader->GetProgram(), "diffuseTex"), 0);
+        glUniform4fv(glGetUniformLocation(shader->GetProgram(), "nodeColour"), 1, (float*)&n->GetColour());
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, n->GetTexture());
         for (int i = 0; i < n->GetMesh()->GetSubMeshCount(); ++i) {
@@ -345,7 +349,7 @@ void Renderer::SetMeshes() {
     s->SetMesh(mesh);
     s->SetAnim(anim);
     s->SetShader(SKINNING_SHADER);
-    //root1->AddChild(guy);
+    root2->AddChild(s);
 
     std::shared_ptr<Mesh> sharedMesh = std::shared_ptr<Mesh>(Mesh::LoadFromMeshFile("new/persona_4_-_television.prefab.msh"));
     material = new MeshMaterial("new/persona_4_-_television.prefab.mat");
@@ -387,14 +391,23 @@ void Renderer::SetMeshes() {
     mesh = Mesh::LoadFromMeshFile("new/lunar_tear.msh");
     s = new SceneNode();
     root1->AddChild(s);
-    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.728f, 0.22, 0.2f)));
+    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.725f, 0.28, 0.225f)));
     s->SetBoundingRadius(1000.0f);
-    s->SetModelScale(Vector3(2000.0f, 2000.0f, 2000.0f));
+    s->SetModelScale(Vector3(200.0f, 200.0f, 200.0f));
     s->SetRotation(Matrix4::Rotation(-60.0f, Vector3(0, 1, 0)));
     s->SetColour(Vector4(1.0f, 1.0f, 1.0f, 1.0f));
     s->SetShader(SCENE_INSTANCED_SHADER);
-    mesh->SetInstances(flowerPos, 20);
+    mesh->SetInstances(flowerPos, 100);
     s->SetMesh(mesh);
+
+    s = loadMeshAndMaterial("Sphere.msh", "");
+    root2->AddChild(s);
+    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.728f, 0.45, 0.2f)));
+    s->SetBoundingRadius(100.0f);
+    s->SetModelScale(Vector3(2000.0f, 2000.0f, 2000.0f));
+    s->SetRotation(Matrix4::Rotation(-60.0f, Vector3(0, 1, 0)));
+    s->SetShader(SCENE_INSTANCED_SHADER);
+    s->GetMesh()->SetInstances(new Vector3[2]{ Vector3(0, 10, 10), Vector3(0,1, 10)}, 2);
 
     s = loadMeshAndMaterial("new/door (4).msh", "new/door (4).mat");
     s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.5, 0.8, 0.95)));

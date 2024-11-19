@@ -122,7 +122,7 @@ protected:
 
 	unsigned int*	indices;
 
-	Vector3* instancePositions;
+	Vector3* instanceOffsets;
 
 	Matrix4* bindPose;
 	Matrix4* inverseBindPose;

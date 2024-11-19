@@ -127,7 +127,7 @@ void	Shader::SetDefaultAttributes()	{
 
 	glBindAttribLocation(programID, WEIGHTVALUE_BUFFER, "jointWeights");
 	glBindAttribLocation(programID, WEIGHTINDEX_BUFFER, "jointIndices");
-	glBindAttribLocation(programID, INSTANCE_TRANSFORM_BUFFER, "instancePositions");
+	glBindAttribLocation(programID, INSTANCE_TRANSFORM_BUFFER, "instanceOffset");
 }
 
 void	Shader::DeleteIDs() {

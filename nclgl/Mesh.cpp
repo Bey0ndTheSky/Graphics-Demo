@@ -23,7 +23,7 @@ Mesh::Mesh(void)	{
 	weights			= nullptr;
 	weightIndices	= nullptr;
 	numInstances = 0;
-	instancePositions = nullptr;
+	instanceOffsets = nullptr;
 }
 
 Mesh::~Mesh(void)	{
@@ -38,7 +38,7 @@ Mesh::~Mesh(void)	{
 	delete[]	colours;
 	delete[]	weights;
 	delete[]	weightIndices;
-	delete[]	instancePositions;
+	delete[]	instanceOffsets;
 }
 
 void Mesh::Draw() {
@@ -190,21 +190,21 @@ Mesh* Mesh::GenerateTriangle() {
 }
 
 void Mesh::SetInstances(Vector3* instanceTransforms, int instances) {
-	this->instancePositions = new Vector3[instances];
+	this->instanceOffsets = new Vector3[instances];
 	numInstances = instances;
 	for (int i = 0; i < instances; i++) {
-		instancePositions[i] = instanceTransforms[i];
+		instanceOffsets[i] = instanceTransforms[i];
 	}
 
 	glBindVertexArray(arrayObject);
 	glGenBuffers(1, &bufferObject[INSTANCE_TRANSFORM_BUFFER]);
 
     glBindBuffer(GL_ARRAY_BUFFER, bufferObject[INSTANCE_TRANSFORM_BUFFER]);
-    glBufferData(GL_ARRAY_BUFFER, numInstances * sizeof(Vector3), this->instancePositions, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, numInstances * sizeof(Vector3), this->instanceOffsets, GL_STATIC_DRAW);
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vector3), (GLvoid*)0);
-	glEnableVertexAttribArray(0);
-	glVertexAttribDivisor(0, 1);
+	glEnableVertexAttribArray(INSTANCE_TRANSFORM_BUFFER);
+	glVertexAttribPointer(INSTANCE_TRANSFORM_BUFFER, 3, GL_FLOAT, GL_FALSE, 0, (GLvoid*)0);
+	glVertexAttribDivisor(INSTANCE_TRANSFORM_BUFFER, 1); 
 
     glObjectLabel(GL_BUFFER, bufferObject[INSTANCE_TRANSFORM_BUFFER], -1, "Instance transforms");
 
