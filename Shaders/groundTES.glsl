@@ -13,7 +13,6 @@ in Vertex {
     vec3 tangent; 
     vec3 binormal;
 	vec3 worldPos;
-	vec2 displacement;
 } IN[];
 
 out Vertex {

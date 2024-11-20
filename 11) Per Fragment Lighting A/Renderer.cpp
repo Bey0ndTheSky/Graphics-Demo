@@ -71,7 +71,7 @@ void Renderer::RenderScene() {
     glBindTexture(GL_TEXTURE_2D, texture);
 
     glUniform3fv(
-        glGetUniformLocation(shader->GetProgram(), "cameraPos"),
+        glGetUniformLocation(shader->GetProgram(), "cameraPosition"),
         1,
         (float*)&camera->GetPosition()
     );

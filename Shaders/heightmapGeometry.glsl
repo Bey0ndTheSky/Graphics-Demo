@@ -44,22 +44,33 @@ float rand(vec3 vec){
 	return fract(sin(dot(vec, vec3(12.9898, 78.233, 54.53))) * 43758.5453);
  }
 void main(void) {
-
-	gl_Position  = gl_in[0].gl_Position;
-	OUT.texCoord = IN[0].texCoord;
+	gl_Position = gl_in[0].gl_Position;
+    OUT.texCoord = IN[0].texCoord;
     OUT.colour = IN[0].colour;
-	EmitVertex();
- 
-	gl_Position  = gl_in[1].gl_Position;
-	OUT.texCoord = IN[1].texCoord;
-    OUT.colour = IN[1].colour; 
-	EmitVertex();
-	
-	gl_Position  = gl_in[2].gl_Position;
-	OUT.texCoord = IN[2].texCoord;
-    OUT.colour = IN[2].colour; 
-	EmitVertex();
-	EndPrimitive();
+    OUT.normal = IN[0].normal;
+    OUT.tangent = IN[0].tangent;
+    OUT.binormal = IN[0].binormal;
+    OUT.worldPos = IN[0].worldPos;
+    EmitVertex();
+
+    gl_Position = gl_in[1].gl_Position;
+    OUT.texCoord = IN[1].texCoord;
+    OUT.colour = IN[1].colour;
+    OUT.normal = IN[1].normal;
+    OUT.tangent = IN[1].tangent;
+    OUT.binormal = IN[1].binormal;
+    OUT.worldPos = IN[1].worldPos;
+    EmitVertex();
+
+    gl_Position = gl_in[2].gl_Position;
+    OUT.texCoord = IN[2].texCoord;
+    OUT.colour = IN[2].colour;
+    OUT.normal = IN[2].normal;
+    OUT.tangent = IN[2].tangent;
+    OUT.binormal = IN[2].binormal;
+    OUT.worldPos = IN[2].worldPos;
+    EmitVertex();
+    EndPrimitive();
 	
 	for (int i = 0; i < 3; ++i) { 
 

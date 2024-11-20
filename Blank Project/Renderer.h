@@ -2,6 +2,7 @@
 #include "../nclgl/OGLRenderer.h"
 #include "../nclgl/Frustum.h"
 #include "../nclgl/SceneNode.h"
+#include "../nclgl/light.h"
 #include <memory>
 
 class Mesh;
@@ -17,6 +18,7 @@ enum ShaderIndices{
         SCENE_SHADER,
         SCENE_INSTANCED_SHADER,
         SKINNING_SHADER,
+        SNOW_SHADER
 };
 
 class Renderer : public OGLRenderer {
@@ -34,6 +36,7 @@ public:
     void SetTextures();
     void SetShaders();
     void SetMeshes();
+    void changeScene();
 
     void BuildNodeLists(SceneNode* from);
     void SortNodeLists();
@@ -56,6 +59,8 @@ protected:
     GLuint waterTex;
     GLuint dispTex;
     GLuint windTex;
+    GLuint snowDiff;
+    GLuint snowBump;
     GLuint cubeMap1;
     GLuint cubeMap2;
 
@@ -65,10 +70,12 @@ protected:
 
     Mesh* quad;
     Mesh* mesh;
+    Light* light;
 
     MeshAnimation* anim;
     MeshMaterial* material;
 
+    float lightParam = 0;
     int currentFrame;
     float frameTime;
 
@@ -190,8 +197,7 @@ protected:
         Vector3(-0.68f, 0.0f, -0.76f)
     };
 
-
-
-
-
+    Vector4 lerp(const Vector4& a, const Vector4& b, float t) {
+        return a + (b - a) * t;
+    }
 };

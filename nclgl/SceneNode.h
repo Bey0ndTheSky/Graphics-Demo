@@ -10,7 +10,7 @@ class MeshMaterial;
 
 class SceneNode {
 public:
-    SceneNode(Mesh* m = nullptr, Vector4 colour = Vector4(0, 0, 0, 0));
+    SceneNode(Mesh* m = nullptr, Vector4 colour = Vector4(0, 0, 0, 1));
     //SceneNode(std::shared_ptr<Mesh>, Vector4 colour = Vector4(1, 1, 1, 1));
     ~SceneNode();
 
@@ -65,8 +65,6 @@ public:
     std::vector<SceneNode*>::const_iterator GetChildIteratorEnd() {
         return children.end();
     }
-
-    std::shared_ptr<std::vector<GLuint>> matTextures;
 
 protected:
     SceneNode* parent;

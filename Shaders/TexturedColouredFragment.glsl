@@ -11,7 +11,6 @@ in Vertex {
 out vec4 fragColour;
 
 void main(void) {
-    
     vec4 textureColour = texture(diffuseTex, IN.texCoord);
     
     if (length(IN.colour.rgb) > 0.1) {

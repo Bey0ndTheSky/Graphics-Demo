@@ -6,14 +6,16 @@ uniform mat4 projMatrix;
 
 in vec3 position;
 in vec4 colour;
-in vec3 normal;  // New Attribute!
+in vec3 normal;  
 in vec2 texCoord;
 
 out Vertex {
-    vec4 colour;
     vec2 texCoord;
-    vec3 normal;
-    vec3 worldPos;
+    vec4 colour;
+	vec3 normal;
+    vec3 tangent; 
+    vec3 binormal;
+	vec3 worldPos;
 } OUT;
 
 void main(void) {

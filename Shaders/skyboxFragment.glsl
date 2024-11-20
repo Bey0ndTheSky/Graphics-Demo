@@ -1,6 +1,8 @@
 #version 330 core
 
 uniform samplerCube cubeTex;
+uniform vec4 colour;
+uniform bool useColour;
 
 in Vertex {
     vec3 viewDir;
@@ -9,5 +11,10 @@ in Vertex {
 out vec4 fragColour;
 
 void main(void) {
-    fragColour = texture(cubeTex, normalize(IN.viewDir));
+	if(useColour){
+		fragColour = colour;
+	}
+	else{
+		fragColour = texture(cubeTex, normalize(IN.viewDir));
+	}
 }

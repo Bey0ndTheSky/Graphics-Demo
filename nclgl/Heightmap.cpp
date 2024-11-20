@@ -66,7 +66,7 @@ Vector3 HeightMap::GetWorldCoordinatesFromTextureCoords(float u, float v) {
 
     int iWidth, iHeight, iChans;
     Vector3 vertexScale = Vector3(50.0f, 3.5f, 50.0f);
-    Vector2 textureScale = Vector2(1 / 50.0f, 1.0f / 50.0f);
+    Vector2 textureScale = Vector2(1 / 5000.0f, 1.0f / 5000.0f);
 
     unsigned char* data = SOIL_load_image(TEXTUREDIR "valleyTex.png", &iWidth, &iHeight, &iChans, 1);
 

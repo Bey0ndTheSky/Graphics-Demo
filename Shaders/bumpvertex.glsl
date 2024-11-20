@@ -4,19 +4,19 @@ uniform mat4 modelMatrix;
 uniform mat4 viewMatrix;
 uniform mat4 projMatrix;
 
-in vec3 position;
-in vec4 colour;
+in vec3 position; 
+in vec2 texCoord; 
+in vec4 colour;    
 in vec3 normal;
-in vec4 tangent; // New! Note, Vec4!
-in vec2 texCoord;
+in vec4 tangent;
 
 out Vertex {
-    vec4 colour;
     vec2 texCoord;
-    vec3 normal;
-    vec3 tangent; // New! Note, Vec3!
-    vec3 binormal; // New!
-    vec3 worldPos;
+    vec4 colour;
+	vec3 normal;
+    vec3 tangent; 
+    vec3 binormal;
+	vec3 worldPos;
 } OUT;
 
 void main(void) {
@@ -34,6 +34,5 @@ void main(void) {
 
     vec4 worldPos = modelMatrix * vec4(position, 1.0);
     OUT.worldPos = worldPos.xyz;
-
     gl_Position = projMatrix * viewMatrix * worldPos;
 }

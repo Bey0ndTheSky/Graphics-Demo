@@ -9,7 +9,6 @@ in Vertex {
     vec3 tangent; 
     vec3 binormal;
 	vec3 worldPos;
-	vec2 displacement;
 } IN[];
 
 out Vertex {
@@ -19,7 +18,6 @@ out Vertex {
     vec3 tangent; 
     vec3 binormal;
 	vec3 worldPos;
-	vec2 displacement;
 } OUT[];
 
 uniform mat4 viewMatrix;

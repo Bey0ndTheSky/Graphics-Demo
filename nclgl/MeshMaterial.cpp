@@ -51,6 +51,7 @@ MeshMaterial::MeshMaterial(const std::string& filename) {
 			file = entryData.substr(split + 1);
 
 			materialLayers[i].entries.insert(std::make_pair(channel, file));
+			materialLayers[i].textures.insert(std::make_pair(channel, 0));
 		}
 	}
 
@@ -61,7 +62,7 @@ MeshMaterial::MeshMaterial(const std::string& filename) {
 	}
 }
 
-const MeshMaterialEntry* MeshMaterial::GetMaterialForLayer(int i) const {
+MeshMaterialEntry* MeshMaterial::GetMaterialForLayer(int i) {
 	if (i < 0 || i >= (int) meshLayers.size()) {
 		return nullptr;
 	}

@@ -30,6 +30,14 @@ public:
 		return Vector3(x, y, z);
 	}
 
+	inline Vector4 operator+(const Vector4& other) const {
+		return Vector4(x + other.x, y + other.y, z + other.z, w + other.w);
+	}
+
+	inline Vector4 operator-(const Vector4& other) const {
+		return Vector4(x - other.x, y - other.y, z - other.z, w - other.w);
+	}
+
 	inline void operator+=(const Vector4& a) {
 		x += a.x;
 		y += a.y;
@@ -69,6 +77,7 @@ public:
 	inline Vector4  operator*(const float a) const {
 		return Vector4(x * a, y * a, z * a, w * a);
 	}
+
 
 	~Vector4(void){}
 

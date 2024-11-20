@@ -76,7 +76,7 @@ void Renderer::RenderScene() {
     glBindTexture(GL_TEXTURE_2D, bumpmap);
 
     glUniform3fv(glGetUniformLocation(
-        shader->GetProgram(), "cameraPos"), 1, (float*)&camera->GetPosition());
+        shader->GetProgram(), "cameraPosition"), 1, (float*)&camera->GetPosition());
 
     UpdateShaderMatrices();
     SetShaderLight(*light);

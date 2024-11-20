@@ -3,6 +3,7 @@
 #include <map>
 #include <vector>
 #include <memory>
+#include <glad/glad.h>
 
 using std::map;
 using std::string;
@@ -11,6 +12,7 @@ using std::vector;
 class MeshMaterialEntry {
 public:
 	std::map<string, string> entries;
+	std::map<string, GLuint> textures;
 
 	bool GetEntry(const string& name, const string** output) const {
 		auto i = entries.find(name);
@@ -20,7 +22,6 @@ public:
 		*output = &i->second;
 		return true;
 	}
-
 };
 
 class MeshMaterial
@@ -28,10 +29,12 @@ class MeshMaterial
 public:
 	MeshMaterial(const std::string& filename);
 	~MeshMaterial() {}
-	const MeshMaterialEntry* GetMaterialForLayer(int i) const;
+	MeshMaterialEntry* GetMaterialForLayer(int i);
 
-protected:
 	std::vector<MeshMaterialEntry>	materialLayers;
 	std::vector<MeshMaterialEntry*> meshLayers;
+
+protected:
+	
 };
 
