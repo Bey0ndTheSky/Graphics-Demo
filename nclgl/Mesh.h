@@ -58,6 +58,7 @@ public:
 
 	static Mesh* LoadFromMeshFile(const std::string& name);
 
+	static Mesh* GeneratePoint();
 	static Mesh* GenerateTriangle();
 	static Mesh* GenerateQuad();
 

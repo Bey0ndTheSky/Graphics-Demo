@@ -189,6 +189,19 @@ Mesh* Mesh::GenerateTriangle() {
 	return m;
 }
 
+Mesh* Mesh::GeneratePoint() {
+	Mesh* m = new Mesh();
+	m->numVertices = 1;
+
+	m->vertices = new Vector3[m->numVertices];
+	m->vertices[0] = Vector3(0.0f, 0.0f, 0.0f);
+	m->textureCoords = new Vector2[m->numVertices];
+
+	m->textureCoords[0] = Vector2(0.0f, 0.0f);
+	m->BufferData();
+	return m;
+}
+
 void Mesh::SetInstances(Vector3* instanceTransforms, int instances) {
 	this->instanceOffsets = new Vector3[instances];
 	numInstances = instances;

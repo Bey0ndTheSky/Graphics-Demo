@@ -54,7 +54,7 @@ void main() {
 	OUT.worldPos = interpolate3D(IN[0].worldPos, IN[1].worldPos, IN[2].worldPos);
 	
 	float displacement = texture(DisplacementMap, OUT.texCoord.xy / 10.24).x;
-    OUT.worldPos += OUT.worldPos * displacement * dispFactor;
+    OUT.worldPos += OUT.normal * displacement * dispFactor;
 		
     gl_Position = projMatrix * viewMatrix * vec4(OUT.worldPos, 1.0);
 }

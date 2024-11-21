@@ -18,7 +18,8 @@ enum ShaderIndices{
         SCENE_SHADER,
         SCENE_INSTANCED_SHADER,
         SKINNING_SHADER,
-        SNOW_SHADER
+        SNOW_SHADER,
+        SNOWFALL_SHADER
 };
 
 class Renderer : public OGLRenderer {
@@ -30,6 +31,7 @@ public:
     void UpdateScene(float dt) override;
     void DrawGround();
     void DrawSkybox();
+    void DrawSnow();
     void DrawWater();
     void DrawReflect(SceneNode* n);
     void DrawAnim(SceneNode* n);
@@ -57,10 +59,12 @@ protected:
     Camera* camera;
     GLuint terrainTex;
     GLuint waterTex;
+    GLuint waterBump;
     GLuint dispTex;
     GLuint windTex;
     GLuint snowDiff;
     GLuint snowBump;
+    GLuint snowTex;
     GLuint cubeMap1;
     GLuint cubeMap2;
 
@@ -70,6 +74,7 @@ protected:
 
     Mesh* quad;
     Mesh* mesh;
+    Mesh* snow;
     Light* light;
 
     MeshAnimation* anim;
@@ -81,12 +86,14 @@ protected:
 
     float waterRotate;
     float waterCycle;
+    float gravity;
 
     float windTranslate;
     float windStrength;
 
+    Vector3 particles[1000];
+   
     Vector3 flowerPos[100] = {
-        // Radius 10.0f
         Vector3(10.0f, 0.0f, 0.0f),
         Vector3(9.51f, 0.0f, 3.09f),
         Vector3(8.09f, 0.0f, 5.88f),
@@ -108,7 +115,6 @@ protected:
         Vector3(8.09f, 0.0f, -5.88f),
         Vector3(9.51f, 0.0f, -3.09f),
 
-        // Radius 8.0f
         Vector3(8.0f, 0.0f, 0.0f),
         Vector3(7.64f, 0.0f, 2.76f),
         Vector3(6.28f, 0.0f, 4.95f),
@@ -130,7 +136,6 @@ protected:
         Vector3(6.28f, 0.0f, -4.95f),
         Vector3(7.64f, 0.0f, -2.76f),
 
-        // Radius 5.0f
         Vector3(5.0f, 0.0f, 0.0f),
         Vector3(4.85f, 0.0f, 1.55f),
         Vector3(4.29f, 0.0f, 3.83f),
@@ -152,7 +157,6 @@ protected:
         Vector3(4.29f, 0.0f, -3.83f),
         Vector3(4.85f, 0.0f, -1.55f),
 
-        // Radius 3.0f
         Vector3(3.0f, 0.0f, 0.0f),
         Vector3(2.85f, 0.0f, 0.90f),
         Vector3(2.55f, 0.0f, 1.95f),
@@ -174,7 +178,6 @@ protected:
         Vector3(2.55f, 0.0f, -1.95f),
         Vector3(2.85f, 0.0f, -0.90f),
 
-        // Radius 1.0f
         Vector3(1.0f, 0.0f, 0.0f),
         Vector3(0.98f, 0.0f, 0.18f),
         Vector3(0.92f, 0.0f, 0.39f),
@@ -197,7 +200,37 @@ protected:
         Vector3(-0.68f, 0.0f, -0.76f)
     };
 
+    Vector3 headstonePos[21] = {
+        // Row 1
+        Vector3(-1200.0f, 0.0f, 400.0f),
+        Vector3(-800.0f, 7.0f, 400.0f),
+        Vector3(-400.0f, 24.0f, 400.0f),
+        Vector3(0.0f, 41.0f, 400.0f),
+        Vector3(400.0f, 47.0f, 400.0f),
+        Vector3(800.0f,51.5f, 400.0f),
+        Vector3(1200.0f, 37.0f, 400.0f),
+
+        // Row 2
+        Vector3(-1200.0f, 0.0f, 0.0f),
+        Vector3(-800.0f, 10.5f, 0.0f),
+        Vector3(-400.0f, 26.0f, 0.0f),
+        Vector3(0.0f, 42.0f, 0.0f),
+        Vector3(400.0f, 47.0f, 0.0f),
+        Vector3(800.0f, 36.5f, 0.0f),
+        Vector3(1200.0f, 30.0f, 0.0f),
+
+        // Row 3
+        Vector3(-1200.0f, 0.0f, -400.0f),
+        Vector3(-800.0f, 14.0f, -400.0f),
+        Vector3(-400.0f, 8.0f, -400.0f),
+        Vector3(0.0f, 4.0f, -400.0f),
+        Vector3(400.0f, 54.5f, -400.0f),
+        Vector3(800.0f, 69.0f, -400.0f),
+        Vector3(1200.0f, 75.0f, -400.0f)
+    };
+
+
     Vector4 lerp(const Vector4& a, const Vector4& b, float t) {
-        return a + (b - a) * t;
+        return t > 1.0f ? b : a + (b - a) * t;
     }
 };

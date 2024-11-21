@@ -42,10 +42,21 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
     root2 = new SceneNode();
 
     light = new Light(dimensions * Vector3(0.2f, 15.0f, 0.5f),
-        Vector4(1, 1, 1, 1), dimensions.x * 3.75f);
+        Vector4(1, 1, 1, 1), dimensions.x * 4.25f);
+
+    for (int i = 0; i < 1000; ++i) {
+        Vector3 p = Vector3(
+            rand() % static_cast<int>(dimensions.x),
+            rand() % 10 + 1,
+            rand() % static_cast<int>(dimensions.z)
+        );
+        particles[i] = p;
+    }
+    snow = Mesh::GeneratePoint();
+    snow->SetInstances(particles, 1000);
+    snow->SetPrimitiveType(GL_POINTS);
 
     SetMeshes();
-
     init = true;
 }
 
@@ -71,16 +82,19 @@ void Renderer::UpdateScene(float dt) {
     frameTime -= dt;
     waterRotate += dt * 0.1f;
     waterCycle += dt * 0.05f;
+    gravity += dt;
 
     windTranslate += dt * (0.015f + cos(dt * 0.01f) * 0.01f);
-    windStrength = 0.3f * sin(dt * 0.05f) * 0.29 ;
+    windStrength = 0.3f * sin(dt * 0.05f) * 0.29;
 
     frameFrustum.FromMatrix(projMatrix * viewMatrix);
     (activeScene ? root1 : root2)->Update(dt);
 
-    lightParam += dt * 0.001f;
-    light->SetPosition(light->GetPosition() + Vector3(1, 5, 0) * dt * 0.001f * heightMap->GetHeightmapSize().x);
-    light->SetColour(lerp(Vector4(1.0f, 1.0f, 0.8f, 1.0f), Vector4(1.0f, 0.5f, 0.0f, 1.0f), lightParam));
+    if (activeScene) {
+    lightParam += dt * 0.005f;
+    light->SetPosition(light->GetPosition() + Vector3(1, 5, 0) * dt * 0.005f * heightMap->GetHeightmapSize().x);
+    light->SetColour(lerp(Vector4(1.0f, 1.0f, 1.0f, 1.0f), Vector4(1.0f, 0.5f, 0.0f, 1.0f), lightParam));
+    }
 }
 
 void Renderer::RenderScene() {
@@ -110,10 +124,10 @@ void Renderer::RenderScene() {
         DrawNodes();
         ClearNodeLists();
 
+        DrawSnow();
         DrawWater();
     }
     
-
     DrawSkybox();
     glDisable(GL_STENCIL_TEST);
 
@@ -143,13 +157,14 @@ void Renderer::changeScene() {
    
     glUniform4f(glGetUniformLocation(shader->GetProgram(), "colour"), 0.0f, 0.0f, 0.0f, 1.0f);
     freezeFrame();
-    activeScene = !activeScene;
+    
 
     glUniform4f(glGetUniformLocation(shader->GetProgram(), "colour"), 1.0f, 1.0f, 1.0f, 1.0f);
     freezeFrame();
 
     glUniform4f(glGetUniformLocation(shader->GetProgram(), "colour"), 0.0f, 0.0f, 0.0f, 1.0f);
     freezeFrame();
+    
     
     glUniform4f(glGetUniformLocation(shader->GetProgram(), "colour"), 1.0f, 1.0f, 1.0f, 1.0f);
     freezeFrame();
@@ -158,6 +173,10 @@ void Renderer::changeScene() {
     glEnable(GL_STENCIL_TEST);
     glDepthMask(GL_TRUE);
 
+    activeScene = !activeScene;
+    lightParam = 0;
+    light->SetPosition(heightMap->GetHeightmapSize() * Vector3(0.2, 10, 0.5));
+    light->SetColour(Vector4(1.0f, 1.0f, 1.0f, 1.0f));
     currentFrame = 0;
     frameTime = 0.0f;
 }
@@ -180,7 +199,7 @@ void Renderer::DrawGround() {
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, windTex);
 
-        glUniform1f(glGetUniformLocation(shader->GetProgram(), "dispFactor"), 0.1f);
+        glUniform1f(glGetUniformLocation(shader->GetProgram(), "dispFactor"), 0.0f);
         glUniform1f(glGetUniformLocation(shader->GetProgram(), "grassHeight"), 25.0f);
         glUniform1f(glGetUniformLocation(shader->GetProgram(), "bladeWidth"), 5.0f);
         glUniform1f(glGetUniformLocation(shader->GetProgram(), "dispFactor"), 0.0f);
@@ -214,15 +233,11 @@ void Renderer::DrawGround() {
         glBindTexture(GL_TEXTURE_2D, windTex);
 
         glUniform1f(glGetUniformLocation(shader->GetProgram(), "dispFactor"), 0.5f);
-        glUniform1f(glGetUniformLocation(shader->GetProgram(), "grassHeight"), 25.0f);
-        glUniform1f(glGetUniformLocation(shader->GetProgram(), "bladeWidth"), 5.0f);
 
         glUniform1f(glGetUniformLocation(shader->GetProgram(), "windTraslate"), windTranslate);
         glUniform1f(glGetUniformLocation(shader->GetProgram(), "windStrength"), windStrength);
 
         glUniform3fv(glGetUniformLocation(shader->GetProgram(), "cameraPosition"), 1, (float*)&camera->GetPosition());
-        glUniform4f(glGetUniformLocation(shader->GetProgram(), "colourBase"), 0.0f, 0.8f, 0.0f, 1.0f); 
-        glUniform4f(glGetUniformLocation(shader->GetProgram(), "colourTop"), 1.0f, 1.0f, 0.0f, 1.0f);  
 
     }
     
@@ -248,6 +263,28 @@ void Renderer::DrawSkybox() {
     glDepthMask(GL_TRUE);
 }
 
+void Renderer::DrawSnow() {
+    glEnable(GL_PROGRAM_POINT_SIZE);
+    glEnable(GL_POINT_SPRITE);
+
+    shader = shaderVec[SNOWFALL_SHADER];
+    BindShader(shader);
+    modelMatrix = Matrix4::Translation(Vector3(0, 200, 0));
+    glUniform1f(glGetUniformLocation(shader->GetProgram(), "windTraslate"), windTranslate);
+    glUniform1f(glGetUniformLocation(shader->GetProgram(), "windStrength"), windStrength);
+    glUniform1f(glGetUniformLocation(shader->GetProgram(), "gravity"), gravity);
+    glUniform1i(glGetUniformLocation(shader->GetProgram(), "snowTex"), 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, snowTex);
+
+    glUniform1i(glGetUniformLocation(shader->GetProgram(), "windMap"), 1);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, windTex);
+    snow->Draw();
+
+    glDisable(GL_PROGRAM_POINT_SIZE);
+    glDisable(GL_POINT_SPRITE);
+}
 void Renderer::DrawWater() {
     shader = shaderVec[REFLECT_SHADER];
     BindShader(shader);
@@ -255,9 +292,12 @@ void Renderer::DrawWater() {
     glUniform3fv(glGetUniformLocation(shader->GetProgram(), "cameraPosition"), 1, (float*)&camera->GetPosition());
 
     glUniform1i(glGetUniformLocation(shader->GetProgram(), "diffuseTex"), 0);
+    glUniform1i(glGetUniformLocation(shader->GetProgram(), "bumpTex"), 1);
     glUniform1i(glGetUniformLocation(shader->GetProgram(), "cubeTex"), 2);
     glUniform1i(glGetUniformLocation(shader->GetProgram(), "useIce"), activeScene ? GL_TRUE : GL_FALSE);
 
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, waterTex);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, waterTex);
 
@@ -301,6 +341,7 @@ void Renderer::DrawNode(SceneNode* n) {
 
         glUniform1i(glGetUniformLocation(shader->GetProgram(), "diffuseTex"), 0);
         glUniform1i(glGetUniformLocation(shader->GetProgram(), "bumpTex"), 1);
+        glUniform1i(glGetUniformLocation(shader->GetProgram(), "metallicRoughTex"), 2);
         glUniform4fv(glGetUniformLocation(shader->GetProgram(), "nodeColour"), 1, (float*)&n->GetColour());
 
         if (n->GetMaterial()) {
@@ -311,6 +352,8 @@ void Renderer::DrawNode(SceneNode* n) {
                 glBindTexture(GL_TEXTURE_2D, matEntry->textures["Diffuse"]);
                 glActiveTexture(GL_TEXTURE1);
                 glBindTexture(GL_TEXTURE_2D, matEntry->textures["Bump"]);
+                glActiveTexture(GL_TEXTURE2);
+                glBindTexture(GL_TEXTURE_2D, matEntry->textures["Metallic"]);
                 n->GetMesh()->DrawSubMesh(i);
             }
         }
@@ -331,7 +374,9 @@ void Renderer::DrawAnim(SceneNode* n) {
     UpdateShaderMatrices();
     SetShaderLight(*light);
 
-    glUniform1i(glGetUniformLocation(shaderVec[SKINNING_SHADER]->GetProgram(), "diffuseTex"), 0); 
+    glUniform1i(glGetUniformLocation(shaderVec[SKINNING_SHADER]->GetProgram(), "diffuseTex"), 0);
+    glUniform1i(glGetUniformLocation(shader->GetProgram(), "bumpTex"), 1);
+    glUniform1i(glGetUniformLocation(shader->GetProgram(), "metallicRoughTex"), 2);
 
     while (frameTime < 0.0f) {
         currentFrame = (currentFrame + 1) % n->GetAnim()->GetFrameCount();
@@ -357,6 +402,8 @@ void Renderer::DrawAnim(SceneNode* n) {
         glBindTexture(GL_TEXTURE_2D, matEntry->textures["Diffuse"]);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, matEntry->textures["Bump"]);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, matEntry->textures["Metallic"]);
         n->GetMesh()->DrawSubMesh(i);
     }
 }
@@ -368,12 +415,14 @@ void Renderer::DrawReflect(SceneNode* n) {
     glUniform1i(glGetUniformLocation(shader->GetProgram(), "bumpTex"), 1);
     glUniform1i(glGetUniformLocation(shader->GetProgram(), "useIce"), GL_FALSE);
     glUniform1i(glGetUniformLocation(shader->GetProgram(), "cubeTex"), 2);
+    glUniform1i(glGetUniformLocation(shader->GetProgram(), "metallicRoughTex"), 3);
 
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_CUBE_MAP, n->GetTexture());
 
     modelMatrix = n->GetWorldTransform() * Matrix4::Scale(n->GetModelScale()) * n->GetRotation();
     UpdateShaderMatrices();
+    SetShaderLight(*light);
 
     if (n->GetMaterial()) {
         for (int i = 0; i < n->GetMesh()->GetSubMeshCount(); ++i) {
@@ -383,6 +432,8 @@ void Renderer::DrawReflect(SceneNode* n) {
             glBindTexture(GL_TEXTURE_2D, matEntry->textures["Diffuse"]);
             glActiveTexture(GL_TEXTURE1);
             glBindTexture(GL_TEXTURE_2D, matEntry->textures["Bump"]);
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, matEntry->textures["Metallic"]);
             n->GetMesh()->DrawSubMesh(i);
         }
     }
@@ -399,9 +450,10 @@ void Renderer::SetShaders() {
     new Shader("skyboxVertex.glsl", "skyboxFragment.glsl"),
     new Shader("reflectVertex.glsl", "reflectFragment.glsl"),
     new Shader("bumpVertex.glsl", "bumpfragment.glsl"),
-    new Shader("TexturedColouredVertexInstanced.glsl", "PerPixelFragment.glsl"),
-    new Shader("SkinningVertex.glsl", "bump.glsl"),
-    new Shader("HeightmapVertex.glsl", "bumpfragment.glsl", "", "groundTCS.glsl", "groundTES.glsl")
+    new Shader("TexturedColouredVertexInstanced.glsl", "bumpfragment.glsl"),
+    new Shader("SkinningVertex.glsl", "bumpfragment.glsl"),
+    new Shader("HeightmapVertex.glsl", "bumpfragment.glsl", "", "groundTCS.glsl", "groundTES.glsl"),
+    new Shader("snowVertex.glsl", "snowFragment.glsl")
     };
 
     for (Shader* shader : shaderVec) {
@@ -419,13 +471,17 @@ void Renderer::SetTextures() {
         SOIL_CREATE_NEW_ID,
         SOIL_FLAG_MIPMAPS);
 
-    dispTex = SOIL_load_OGL_texture(TEXTUREDIR "grass_displacement.PNG",
+    dispTex = SOIL_load_OGL_texture(TEXTUREDIR "Snow_qbAr20_4K_Displacement.jpg",
         SOIL_LOAD_AUTO,
         SOIL_CREATE_NEW_ID,
         SOIL_FLAG_MIPMAPS);
 
     waterTex = SOIL_load_OGL_texture(
         TEXTUREDIR "water.png", SOIL_LOAD_AUTO,
+        SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS
+    );
+    waterBump = SOIL_load_OGL_texture(
+        TEXTUREDIR "waterbump.png", SOIL_LOAD_AUTO,
         SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS
     );
 
@@ -439,6 +495,10 @@ void Renderer::SetTextures() {
     );
     snowBump = SOIL_load_OGL_texture(
         TEXTUREDIR "Snow_qbAr20_4K_Normal.jpg", SOIL_LOAD_AUTO,
+        SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS
+    );
+    snowTex = SOIL_load_OGL_texture(
+        TEXTUREDIR "snow.png", SOIL_LOAD_AUTO,
         SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS
     );
     cubeMap1 = SOIL_load_OGL_cubemap(
@@ -472,8 +532,8 @@ void Renderer::SetMeshes() {
 
     SceneNode* s = loadMeshAndMaterial("Role_T.msh", "Role_T.mat");
     s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.5, 0.5, 0.55)));
-    s->SetModelScale(Vector3(150.0f, 150.0f, 150.0f));
-    s->SetBoundingRadius(150.0f);
+    s->SetModelScale(Vector3(500.0f, 500.0f, 500.0f));
+    s->SetBoundingRadius(250.0f);
     s->SetAnim(anim);
     s->SetShader(SKINNING_SHADER);
     root2->AddChild(s);
@@ -494,7 +554,7 @@ void Renderer::SetMeshes() {
     sharedMesh = std::shared_ptr<Mesh>(Mesh::LoadFromMeshFile("new/persona_4_-_television.prefab.msh"));
     material = new MeshMaterial("new/persona_4_-_television.prefab_trans.mat");
     s = new SceneNode();
-    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.3, 1.0, 0.24)));
+    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.3, 1.1, 0.24)));
     s->SetModelScale(Vector3(4.0f, 4.0f, 4.0f));
     s->SetRotation(Matrix4::Rotation(-90.0f, Vector3(0, 1, 0)));
     s->SetBoundingRadius(300.0f);
@@ -504,22 +564,23 @@ void Renderer::SetMeshes() {
     s->SetTexture(cubeMap1);
     root1->AddChild(s);
 
+    material = new MeshMaterial("new/persona_4_-_television.prefab_trans.mat");
     s = new SceneNode();
-    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.84, 1.7, 0.15)));
+    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.8, 1.7, 0.125)));
     s->SetModelScale(Vector3(10.0f, 10.0f, 10.0f));
     s->SetRotation(Matrix4::Rotation(-100.0f, Vector3(0, 1, 0)));
-    s->SetBoundingRadius(750.0f);
+    s->SetBoundingRadius(1050.0f);
     s->SetMesh(sharedMesh);
     s->SetShader(REFLECT_SHADER);
-    //s->SetMaterial(material);
+    s->SetMaterial(material, true);
     s->SetTexture(cubeMap2);
     root1->AddChild(s);
 
     mesh = Mesh::LoadFromMeshFile("new/lunar_tear.msh");
     s = new SceneNode();
     root1->AddChild(s);
-    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.725f, 0.28, 0.225f)));
-    s->SetBoundingRadius(1000.0f);
+    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.725f, 0.28, 0.20f)));
+    s->SetBoundingRadius(1500.0f);
     s->SetModelScale(Vector3(200.0f, 200.0f, 200.0f));
     s->SetRotation(Matrix4::Rotation(-60.0f, Vector3(0, 1, 0)));
     s->SetColour(Vector4(1.0f, 1.0f, 1.0f, 1.0f));
@@ -527,14 +588,21 @@ void Renderer::SetMeshes() {
     mesh->SetInstances(flowerPos, 100);
     s->SetMesh(mesh);
 
+    s = loadMeshAndMaterial("new/headstone.msh", "new/headstone.mat");
+    root2->AddChild(s);
+    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.48f, 0.5, 0.75)));
+    s->SetBoundingRadius(5500.0f);
+    s->SetModelScale(Vector3(5.0f, 5.0f, 5.0f));
+    s->SetShader(SCENE_INSTANCED_SHADER);
+    s->GetMesh()->SetInstances(headstonePos, 21);
+
     s = loadMeshAndMaterial("Sphere.msh", "");
     root2->AddChild(s);
-    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.728f, 0.65, 0.2f)));
-    s->SetBoundingRadius(1000.0f);
+    s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.725f, 0.28, 0.20f)));
+    s->SetBoundingRadius(1550.0f);
     s->SetModelScale(Vector3(2000.0f, 2000.0f, 2000.0f));
     s->SetRotation(Matrix4::Rotation(-60.0f, Vector3(0, 1, 0)));
     s->SetShader(SCENE_SHADER);
-    s->GetMesh()->SetInstances(new Vector3[2]{ Vector3(0, 10, 10), Vector3(0,1, 10)}, 2);
 
     s = loadMeshAndMaterial("new/door (4).msh", "new/door (4).mat");
     s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.5, 0.8, 0.95)));
@@ -560,6 +628,7 @@ void Renderer::SetMeshes() {
     s->SetAnim(anim);
     s->SetShader(SKINNING_SHADER);
     root1->AddChild(s);
+
 }
 
 void Renderer::BuildNodeLists(SceneNode* from) {
