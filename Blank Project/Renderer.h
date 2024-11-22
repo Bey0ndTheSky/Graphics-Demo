@@ -95,6 +95,7 @@ protected:
     MeshMaterial* material;
 
     bool postProcess = false;
+    int postTex = 0;
     float lightParam = 0;
     int currentFrame;
     float frameTime;

@@ -81,7 +81,7 @@ void Renderer::UpdateScene(float dt) {
 void Renderer::RenderScene() {
     DrawScene();
     //DrawPostProcess();
-    DrawPostProcessSobel();
+    //DrawPostProcessSobel();
     PresentScene();
 }
 
@@ -139,7 +139,7 @@ void Renderer::DrawPostProcess() {
 
 void Renderer::DrawPostProcessSobel() {
     glBindFramebuffer(GL_FRAMEBUFFER, processFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bufferColourTex[1], 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bufferColourTex[0], 0);
     glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
     BindShader(processShader);
@@ -187,7 +187,7 @@ void Renderer::PresentScene() {
     UpdateShaderMatrices();
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, bufferColourTex[1]);
+    glBindTexture(GL_TEXTURE_2D, bufferColourTex[0]);
     glUniform1i(glGetUniformLocation(sceneShader->GetProgram(), "diffuseTex"), 0);
 
     quad->Draw();

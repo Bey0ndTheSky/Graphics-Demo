@@ -1,5 +1,9 @@
 #version 330 core
 
+#define FXAA_REDUCE_MIN   (1.0/ 128.0)
+#define FXAA_REDUCE_MUL   (1.0 / 8.0)
+#define FXAA_SPAN_MAX     8.0
+
 uniform sampler2D sceneTex;
 
 in Vertex {
@@ -8,46 +12,46 @@ in Vertex {
 
 out vec4 fragColor;
 
-// Sobel kernels for edge detection
-const mat3 Gx = mat3(
-    -1.0,  0.0,  1.0,
-    -2.0,  0.0,  2.0,
-    -1.0,  0.0,  1.0
-);
-
-const mat3 Gy = mat3(
-    1.0,  2.0,  1.0,
-    0.0,  0.0,  0.0,
-   -1.0, -2.0, -1.0
-);
-
 void main(void) {
     vec2 delta = vec2(dFdx(IN.texCoord.x), dFdy(IN.texCoord.y));
     
-	vec3 centerColor = texture(sceneTex, IN.texCoord).rgb;
-    vec3 colorLeft = texture(sceneTex, IN.texCoord - vec2(delta.x, 0.0)).rgb;
-    vec3 colorRight = texture(sceneTex, IN.texCoord + vec2(delta.x, 0.0)).rgb;
-    vec3 colorUp = texture(sceneTex, IN.texCoord - vec2(0.0, delta.y)).rgb;
-    vec3 colorDown = texture(sceneTex, IN.texCoord + vec2(0.0, delta.y)).rgb;
+	vec3 rgbM = texture(sceneTex, IN.texCoord).rgb;
+    vec3 rgbNW = texture(sceneTex, IN.texCoord + vec2(delta.x, -delta.y)).rgb;
+    vec3 rgbNE = texture(sceneTex, IN.texCoord + vec2(delta.x, delta.y)).rgb;
+    vec3 rgbSW = texture(sceneTex, IN.texCoord + vec2(-delta.x, -delta.y)).rgb;
+	vec3 rgbSE = texture(sceneTex, IN.texCoord + vec2(-delta.x, delta.y)).rgb;
+	
+	vec3 luma = vec3(0.299, 0.587, 0.114);
+    float lumaNW = dot(rgbNW, luma);
+    float lumaNE = dot(rgbNE, luma);
+    float lumaSW = dot(rgbSW, luma);
+    float lumaSE = dot(rgbSE, luma);
+    float lumaM  = dot(rgbM,  luma);
+	float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));
+    float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));
 
-    // Calculate luminance for edge detection
-    float centerLuminance = dot(centerColor, vec3(0.299, 0.587, 0.114)); // Grayscale luminance
-    float lumLeft = dot(colorLeft, vec3(0.299, 0.587, 0.114));
-    float lumRight = dot(colorRight, vec3(0.299, 0.587, 0.114));
-    float lumUp = dot(colorUp, vec3(0.299, 0.587, 0.114));
-    float lumDown = dot(colorDown, vec3(0.299, 0.587, 0.114));
+    vec2 dir;
+    dir.x = -((lumaNW + lumaNE) - (lumaSW + lumaSE));
+    dir.y =  ((lumaNW + lumaSW) - (lumaNE + lumaSE));
+    
+    float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) *
+                          (0.25 * FXAA_REDUCE_MUL), FXAA_REDUCE_MIN);
+    
+    float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);
+    dir = min(vec2(FXAA_SPAN_MAX, FXAA_SPAN_MAX),
+              max(vec2(-FXAA_SPAN_MAX, -FXAA_SPAN_MAX),
+              dir * rcpDirMin)) * delta;
+      
+    vec3 rgbA = 0.5 * (
+        texture2D(sceneTex, IN.texCoord + dir * (1.0 / 3.0 - 0.5)).xyz +
+        texture2D(sceneTex, IN.texCoord + dir * (2.0 / 3.0 - 0.5)).xyz);
+    vec3 rgbB = rgbA * 0.5 + 0.25 * (
+        texture2D(sceneTex, IN.texCoord + dir * -0.5).xyz +
+        texture2D(sceneTex, IN.texCoord + dir * 0.5).xyz);
 
-    // Detect edges using luminance differences
-    float edgeH = abs(lumLeft - lumRight);
-    float edgeV = abs(lumUp - lumDown);
-    float edgeMagnitude = max(edgeH, edgeV); // Edge strength
-
-    // Smooth edges based on edge strength
-    float smoothing = clamp(1.0 - edgeMagnitude * 2.0, 0.0, 1.0);
-
-    // Blend the surrounding pixels based on smoothing factor
-    vec3 blendedColor = (colorLeft + colorRight + colorUp + colorDown) * 0.25;
-
-    // Mix the center color with the blended color for anti-aliasing
-    fragColor = vec4(mix(centerColor, blendedColor, smoothing), 1.0);
+    float lumaB = dot(rgbB, luma);
+    if ((lumaB < lumaMin) || (lumaB > lumaMax))
+        fragColor = vec4(rgbA, 1.0);
+    else
+        fragColor = vec4(rgbB, 1.0);
 }

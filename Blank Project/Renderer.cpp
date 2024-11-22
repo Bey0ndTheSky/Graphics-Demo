@@ -22,9 +22,45 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
     SetShaders();
     SetTextures();
 
+    glGenTextures(1, &bufferDepthTex);
+    glBindTexture(GL_TEXTURE_2D, bufferDepthTex);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, width, height,
+        0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, NULL);
 
+    for (int i = 0; i < 2; ++i) {
+        glGenTextures(1, &bufferColourTex[i]);
+        glBindTexture(GL_TEXTURE_2D, bufferColourTex[i]);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0,
+            GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    }
 
-    projMatrix = Matrix4::Perspective(1.0f, 80000.0f, (float)width / (float)height, 45.0f);
+    glGenFramebuffers(1, &bufferFBO);     // We'll render the scene into this
+    glGenFramebuffers(1, &processFBO);    // And do post processing in this
+
+    glBindFramebuffer(GL_FRAMEBUFFER, bufferFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, bufferDepthTex, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_STENCIL_ATTACHMENT, GL_TEXTURE_2D, bufferDepthTex, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bufferColourTex[0], 0);
+
+    // We can check FBO attachment success using this command!
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE ||
+        !bufferDepthTex || !bufferColourTex[0]) {
+        return;
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    projMatrix = Matrix4::Perspective(1.0f, 80000.0f,
+        static_cast<float>(width) / static_cast<float>(height),
+        45.0f);
 
     glEnable(GL_DEPTH_TEST);
     glClipControl(GL_LOWER_LEFT,
@@ -46,6 +82,7 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
 
     root1 = new SceneNode();
     root2 = new SceneNode();
+    SetMeshes();
 
     light = new Light(dimensions * Vector3(0.2f, 15.0f, 0.5f),
         Vector4(1, 1, 1, 1), dimensions.x * 4.25f);
@@ -63,9 +100,6 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
     snow->SetInstances(particles, PARTICLE_NUM);
     snow->SetPrimitiveType(GL_POINTS);
 
-    
-
-    SetMeshes();
     init = true;
 }
 
@@ -78,6 +112,11 @@ Renderer::~Renderer(void) {
     delete anim;
     delete light;
 
+    glDeleteTextures(2, bufferColourTex);
+    glDeleteTextures(1, &bufferDepthTex);
+    glDeleteFramebuffers(1, &bufferFBO);
+    glDeleteFramebuffers(1, &processFBO);
+
     for (Shader* shader : shaderVec) {
         delete shader;
     }
@@ -87,6 +126,9 @@ Renderer::~Renderer(void) {
 void Renderer::UpdateScene(float dt) {
     camera->UpdateCamera(dt);
     viewMatrix = camera->BuildViewMatrix();
+    projMatrix = Matrix4::Perspective(1.0f, 80000.0f,
+        static_cast<float>(width) / static_cast<float>(height),
+        45.0f);
 
     frameTime -= dt;
     waterRotate += dt * 0.1f;
@@ -105,15 +147,23 @@ void Renderer::UpdateScene(float dt) {
     light->SetPosition(light->GetPosition() + Vector3(1, 5, 0) * dt * 0.005f * heightMap->GetHeightmapSize().x);
     light->SetColour(lerp(Vector4(1.0f, 1.0f, 1.0f, 1.0f), Vector4(1.0f, 0.5f, 0.0f, 1.0f), lightParam));
     }
+    postTex = 0;
 }
 
 void Renderer::RenderScene() {
-    
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    DrawScene();
+    if (postProcess) { DrawPostProcess(); }
+    PresentScene();
+}
+
+void Renderer::DrawScene() {
+    glBindFramebuffer(GL_FRAMEBUFFER, bufferFBO);
     glEnable(GL_STENCIL_TEST);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    
     glStencilFunc(GL_ALWAYS, 2, ~0);
     glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-    
+
     if (activeScene) {
         BuildNodeLists(activeScene ? root1 : root2);
         SortNodeLists();
@@ -137,10 +187,36 @@ void Renderer::RenderScene() {
         DrawWater();
         //DrawSnow();
     }
-    
+
     DrawSkybox();
     glDisable(GL_STENCIL_TEST);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+void Renderer::DrawPostProcess() {
+   
+    glBindFramebuffer(GL_FRAMEBUFFER, processFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bufferColourTex[1], 0);
+    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
+    shader = shaderVec[POST_PROCESS_SHADER];
+    BindShader(shader);
+    modelMatrix.ToIdentity();
+    viewMatrix.ToIdentity();
+    projMatrix.ToIdentity();
+    textureMatrix.ToIdentity();
+    UpdateShaderMatrices();
+
+    glDisable(GL_DEPTH_TEST);
+
+    glActiveTexture(GL_TEXTURE0);
+    glUniform1i(glGetUniformLocation(shader->GetProgram(), "sceneTex"), 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, bufferColourTex[1], 0);
+    glBindTexture(GL_TEXTURE_2D, bufferColourTex[0]);
+    quad->Draw();
+
+    postTex = !postTex;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glEnable(GL_DEPTH_TEST);
 }
 
 void Renderer::changeScene() {
@@ -191,7 +267,6 @@ void Renderer::changeScene() {
     currentFrame = 0;
     frameTime = 0.0f;
 }
-
 
 void Renderer::DrawGround() {
 
@@ -482,7 +557,9 @@ void Renderer::SetShaders() {
     new Shader("TexturedColouredVertexInstanced.glsl", "bumpfragment.glsl"),
     new Shader("SkinningVertex.glsl", "bumpfragment.glsl"),
     new Shader("HeightmapVertex.glsl", "bumpfragment.glsl", "", "groundTCS.glsl", "groundTES.glsl"),
-    new Shader("snowVertex.glsl", "snowFragment.glsl")
+    new Shader("snowVertex.glsl", "snowFragment.glsl"),
+    new Shader("TexturedVertex.glsl", "fxaa.glsl"),
+    new Shader("TexturedVertex.glsl", "TexturedFragment.glsl")
     };
 
     for (Shader* shader : shaderVec) {
@@ -740,4 +817,23 @@ SceneNode* Renderer::loadMeshAndMaterial(const std::string& meshFile, const std:
 
 void Renderer::LockCamera() {
     camera->LockCamera();
+}
+
+void Renderer::PresentScene() {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    shader = shaderVec[RENDER_SHADER];
+    BindShader(shader);
+    modelMatrix.ToIdentity();
+    viewMatrix.ToIdentity();
+    projMatrix.ToIdentity();
+    textureMatrix.ToIdentity();
+    UpdateShaderMatrices();
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, bufferColourTex[postTex]);
+    glUniform1i(glGetUniformLocation(shader->GetProgram(), "diffuseTex"), 0);
+
+    quad->Draw();
 }
