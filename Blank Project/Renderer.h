@@ -76,9 +76,12 @@ protected:
     GLuint snowFlake;
     GLuint cubeMap1;
     GLuint cubeMap2;
+    GLuint shadowTex;
 
     GLuint bufferFBO;
     GLuint processFBO;
+    GLuint shadowFBO;
+
     GLuint bufferColourTex[2];
     GLuint bufferDepthTex;
 
