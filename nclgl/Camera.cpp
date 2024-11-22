@@ -3,6 +3,7 @@
 #include <algorithm>
 
 void Camera::UpdateCamera(float dt) {
+
     pitch -= (Window::GetMouse()->GetRelativePosition().y);
     yaw -= (Window::GetMouse()->GetRelativePosition().x);
 
@@ -16,12 +17,28 @@ void Camera::UpdateCamera(float dt) {
         yaw -= 360.0f;
     }
 
+    if (!locked) {
+        FreeCamera(dt);
+    }
+    else {
+        FollowPath(dt);
+    }
+}
+
+void Camera::LockCamera() {
+    if (!locked) {
+        position = cameraPath[(currentPos + 1) % 5];
+    }
+    locked = !locked;
+}
+
+void Camera::FreeCamera(float dt) {
     Matrix4 rotation = Matrix4::Rotation(yaw, Vector3(0, 1, 0));
 
     Vector3 forward = rotation * Vector3(0, 0, -1);
     Vector3 right = rotation * Vector3(1, 0, 0);
 
-    float speed = 1000.0f * dt;
+    float speed = 5000.0f * dt;
 
     if (Window::GetKeyboard()->KeyDown(KEYBOARD_W)) {
         position += forward * speed;
@@ -42,6 +59,26 @@ void Camera::UpdateCamera(float dt) {
         position.y -= speed;
     }
 }
+
+void Camera::FollowPath(float dt) {
+    if (!cameraPath.empty()) {
+        Vector3 targetPosition = cameraPath[currentPos];
+
+        Vector3 direction = targetPosition - position;
+        float distance = direction.Length();
+
+        if (distance > 50.0f) {
+            direction.Normalise();
+
+            float speed = 500.0f * dt;
+            position += direction * speed;
+        }
+        else {
+            currentPos = (currentPos + 1) % 5;
+        }
+    }
+}
+
 
 Matrix4 Camera::BuildViewMatrix() {
     return Matrix4::Rotation(-pitch, Vector3(1, 0, 0)) *

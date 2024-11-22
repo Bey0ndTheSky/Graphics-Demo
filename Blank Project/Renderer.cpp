@@ -13,10 +13,16 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
     camera = new Camera(-40, 270, Vector3());
 
     Vector3 dimensions = heightMap->GetHeightmapSize();
-    camera->SetPosition(dimensions * Vector3(0.2, 1, 0.2));
+    camera->SetPosition(dimensions * Vector3(0.2, 2, 0.2));
+
+    for (int i = 0; i < 5; ++i) {
+        camera->cameraPath.emplace_back(dimensions*camerapos[i]);
+    }
 
     SetShaders();
     SetTextures();
+
+
 
     projMatrix = Matrix4::Perspective(1.0f, 80000.0f, (float)width / (float)height, 45.0f);
 
@@ -44,17 +50,20 @@ Renderer::Renderer(Window& parent) : OGLRenderer(parent) {
     light = new Light(dimensions * Vector3(0.2f, 15.0f, 0.5f),
         Vector4(1, 1, 1, 1), dimensions.x * 4.25f);
 
-    for (int i = 0; i < 1000; ++i) {
+    particles = new Vector3[PARTICLE_NUM];
+    for (int i = 0; i < PARTICLE_NUM; ++i) {
         Vector3 p = Vector3(
             rand() % static_cast<int>(dimensions.x),
-            rand() % 10 + 1,
+            rand() % static_cast<int>(dimensions.y * 5),
             rand() % static_cast<int>(dimensions.z)
         );
         particles[i] = p;
     }
     snow = Mesh::GeneratePoint();
-    snow->SetInstances(particles, 1000);
+    snow->SetInstances(particles, PARTICLE_NUM);
     snow->SetPrimitiveType(GL_POINTS);
+
+    
 
     SetMeshes();
     init = true;
@@ -82,6 +91,7 @@ void Renderer::UpdateScene(float dt) {
     frameTime -= dt;
     waterRotate += dt * 0.1f;
     waterCycle += dt * 0.05f;
+    gravity = gravity > 0.981f ? gravity - 0.981f : gravity;
     gravity += dt;
 
     windTranslate += dt * (0.015f + cos(dt * 0.01f) * 0.01f);
@@ -124,8 +134,8 @@ void Renderer::RenderScene() {
         DrawNodes();
         ClearNodeLists();
 
-        DrawSnow();
         DrawWater();
+        //DrawSnow();
     }
     
     DrawSkybox();
@@ -175,6 +185,7 @@ void Renderer::changeScene() {
 
     activeScene = !activeScene;
     lightParam = 0;
+    gravity = 0;
     light->SetPosition(heightMap->GetHeightmapSize() * Vector3(0.2, 10, 0.5));
     light->SetColour(Vector4(1.0f, 1.0f, 1.0f, 1.0f));
     currentFrame = 0;
@@ -265,26 +276,44 @@ void Renderer::DrawSkybox() {
 
 void Renderer::DrawSnow() {
     glEnable(GL_PROGRAM_POINT_SIZE);
-    glEnable(GL_POINT_SPRITE);
 
     shader = shaderVec[SNOWFALL_SHADER];
     BindShader(shader);
-    modelMatrix = Matrix4::Translation(Vector3(0, 200, 0));
     glUniform1f(glGetUniformLocation(shader->GetProgram(), "windTraslate"), windTranslate);
     glUniform1f(glGetUniformLocation(shader->GetProgram(), "windStrength"), windStrength);
     glUniform1f(glGetUniformLocation(shader->GetProgram(), "gravity"), gravity);
-    glUniform1i(glGetUniformLocation(shader->GetProgram(), "snowTex"), 0);
+    glUniform3fv(glGetUniformLocation(shader->GetProgram(), "heightmapSize"), 1, (float*)&heightMap->GetHeightmapSize());    
+    glUniform1i(glGetUniformLocation(shader->GetProgram(), "snowFlake"), 0);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, snowTex);
+    glBindTexture(GL_TEXTURE_2D, snowFlake);
 
     glUniform1i(glGetUniformLocation(shader->GetProgram(), "windMap"), 1);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, windTex);
+
+    modelMatrix.ToIdentity();
+    textureMatrix.ToIdentity();
+    UpdateShaderMatrices();
     snow->Draw();
 
     glDisable(GL_PROGRAM_POINT_SIZE);
-    glDisable(GL_POINT_SPRITE);
 }
+
+void Renderer::updateParticles(float dt) {
+    for (int i = 0; i < PARTICLE_NUM; ++i) {
+        particles[i] += Vector3(0, -9.81, 0) * dt;
+
+        Vector3 dimensions = heightMap->GetHeightmapSize();
+        if (particles[i].y < heightMap->GetHeightmapSize().y * 0.0f) {
+            particles[i] = Vector3(
+                rand() % static_cast<int>(dimensions.x),
+                rand() % static_cast<int>(dimensions.y * 5),
+                rand() % static_cast<int>(dimensions.z)
+            );
+        }
+    }
+}
+    
 void Renderer::DrawWater() {
     shader = shaderVec[REFLECT_SHADER];
     BindShader(shader);
@@ -497,7 +526,7 @@ void Renderer::SetTextures() {
         TEXTUREDIR "Snow_qbAr20_4K_Normal.jpg", SOIL_LOAD_AUTO,
         SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS
     );
-    snowTex = SOIL_load_OGL_texture(
+    snowFlake = SOIL_load_OGL_texture(
         TEXTUREDIR "snow.png", SOIL_LOAD_AUTO,
         SOIL_CREATE_NEW_ID, SOIL_FLAG_MIPMAPS
     );
@@ -517,8 +546,10 @@ void Renderer::SetTextures() {
     SetTextureRepeating(terrainTex, true);
     SetTextureRepeating(waterTex, true);
     SetTextureRepeating(windTex, true);
+    SetTextureRepeating(dispTex, true);
     SetTextureRepeating(snowDiff, true);
     SetTextureRepeating(snowBump, true);
+    SetTextureRepeating(snowFlake, true);
 
     if (!terrainTex || !cubeMap1 || !dispTex || !waterTex || !snowDiff || !snowBump || !windTex || !cubeMap2) {
         std::cerr << "Texture loading failed!" << std::endl;
@@ -533,7 +564,7 @@ void Renderer::SetMeshes() {
     SceneNode* s = loadMeshAndMaterial("Role_T.msh", "Role_T.mat");
     s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.5, 0.5, 0.55)));
     s->SetModelScale(Vector3(500.0f, 500.0f, 500.0f));
-    s->SetBoundingRadius(250.0f);
+    s->SetBoundingRadius(350.0f);
     s->SetAnim(anim);
     s->SetShader(SKINNING_SHADER);
     root2->AddChild(s);
@@ -591,7 +622,7 @@ void Renderer::SetMeshes() {
     s = loadMeshAndMaterial("new/headstone.msh", "new/headstone.mat");
     root2->AddChild(s);
     s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.48f, 0.5, 0.75)));
-    s->SetBoundingRadius(5500.0f);
+    s->SetBoundingRadius(6500.0f);
     s->SetModelScale(Vector3(5.0f, 5.0f, 5.0f));
     s->SetShader(SCENE_INSTANCED_SHADER);
     s->GetMesh()->SetInstances(headstonePos, 21);
@@ -599,7 +630,7 @@ void Renderer::SetMeshes() {
     s = loadMeshAndMaterial("Sphere.msh", "");
     root2->AddChild(s);
     s->SetTransform(Matrix4::Translation(heightMap->GetHeightmapSize() * Vector3(0.725f, 0.28, 0.20f)));
-    s->SetBoundingRadius(1550.0f);
+    s->SetBoundingRadius(2550.0f);
     s->SetModelScale(Vector3(2000.0f, 2000.0f, 2000.0f));
     s->SetRotation(Matrix4::Rotation(-60.0f, Vector3(0, 1, 0)));
     s->SetShader(SCENE_SHADER);
@@ -705,4 +736,8 @@ SceneNode* Renderer::loadMeshAndMaterial(const std::string& meshFile, const std:
         node->SetMaterial(material, true);
     }
     return node;
+}
+
+void Renderer::LockCamera() {
+    camera->LockCamera();
 }

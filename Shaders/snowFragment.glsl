@@ -2,11 +2,15 @@
 
 in vec2 vTexCoord; 
 out vec4 FragColor; 
-
+uniform sampler2D snowFlake;
 void main()
 {
-    float distanceFromCenter = length(vTexCoord - vec2(0.5, 0.5));
-    float particleAlpha = smoothstep(0.45, 0.5, distanceFromCenter);
+    // Sample the texture for the snowflake
+    vec4 texColor = texture(snowFlake, gl_PointCoord);
 
-    FragColor = vec4(1.0, 1.0, 1.0, 0.7 * (1.0 - particleAlpha));
+    // Discard fragments outside the particle texture's visible area (optional)
+    if (texColor.a < 0.5) discard;
+
+    // Output final color
+    FragColor = texColor;
 }

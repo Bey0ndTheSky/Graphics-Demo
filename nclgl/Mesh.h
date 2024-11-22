@@ -90,6 +90,7 @@ public:
 
 	void SetInstances(Vector3* instanceTransforms, int instances);
 
+
 	void GenerateNormals();
 	bool GetVertexIndicesForTri(unsigned int i, unsigned int& a, unsigned int& b, unsigned int& c) const;
 	void GenerateTangents();

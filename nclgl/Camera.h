@@ -1,6 +1,7 @@
 # pragma once
 #include "Matrix4.h"
 #include "Vector3.h"
+#include <vector>;
 
 class Camera {
 public:
@@ -18,6 +19,8 @@ public:
     ~Camera(void) {}
 
     void UpdateCamera(float dt = 1.0f);
+    void FreeCamera(float dt = 1.0f);
+    void FollowPath(float dt = 1.0f);
     Matrix4 BuildViewMatrix();
 
     Vector3 GetPosition() const { return position; }
@@ -28,9 +31,15 @@ public:
 
     float GetPitch() const { return pitch; }
     void SetPitch(float p) { pitch = p; }
+    
+    void LockCamera();
+    std::vector<Vector3> cameraPath;
+    
 
 protected:
+    bool locked = true;
     float yaw;
     float pitch;
     Vector3 position; // Set to 0,0,0 by Vector3 constructor
+    int currentPos = 0;
 };

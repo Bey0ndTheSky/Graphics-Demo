@@ -2,7 +2,7 @@
 #include "Renderer.h"
 
 int main() {
-	Window w("Coursework!", 1600, 900, false);
+	Window w("Coursework!", 1280, 720, false);
 	if (!w.HasInitialised()) {
 		return -1;
 	}
@@ -25,6 +25,12 @@ int main() {
 		}
 		if (Window::GetKeyboard()->KeyTriggered(KEYBOARD_F1)) {
 			renderer.changeScene();
+		}
+		if (Window::GetKeyboard()->KeyTriggered(KEYBOARD_F2)) {
+			renderer.LockCamera();
+		}
+		if (Window::GetKeyboard()->KeyTriggered(KEYBOARD_F3)) {
+			renderer.TogglePostProcess();
 		}
 	}
 	return 0;

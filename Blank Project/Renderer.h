@@ -19,7 +19,9 @@ enum ShaderIndices{
         SCENE_INSTANCED_SHADER,
         SKINNING_SHADER,
         SNOW_SHADER,
-        SNOWFALL_SHADER
+        SNOWFALL_SHADER,
+        POST_PROCESS_SHADER,
+        RENDER_SHADER
 };
 
 class Renderer : public OGLRenderer {
@@ -27,8 +29,12 @@ public:
     Renderer(Window& parent);
     ~Renderer(void);
 
+    void DrawScene();
     void RenderScene() override;
     void UpdateScene(float dt) override;
+    void PresentScene();
+    void updateParticles(float dt);
+    void DrawPostProcess();
     void DrawGround();
     void DrawSkybox();
     void DrawSnow();
@@ -39,6 +45,8 @@ public:
     void SetShaders();
     void SetMeshes();
     void changeScene();
+    void LockCamera();
+    void TogglePostProcess() { this->postProcess = !this->postProcess; }
 
     void BuildNodeLists(SceneNode* from);
     void SortNodeLists();
@@ -65,8 +73,14 @@ protected:
     GLuint snowDiff;
     GLuint snowBump;
     GLuint snowTex;
+    GLuint snowFlake;
     GLuint cubeMap1;
     GLuint cubeMap2;
+
+    GLuint bufferFBO;
+    GLuint processFBO;
+    GLuint bufferColourTex[2];
+    GLuint bufferDepthTex;
 
     Frustum frameFrustum;
     std::vector<SceneNode*> transparentNodeList;
@@ -80,6 +94,7 @@ protected:
     MeshAnimation* anim;
     MeshMaterial* material;
 
+    bool postProcess = false;
     float lightParam = 0;
     int currentFrame;
     float frameTime;
@@ -87,11 +102,12 @@ protected:
     float waterRotate;
     float waterCycle;
     float gravity;
+    const int PARTICLE_NUM = 2000;
 
     float windTranslate;
     float windStrength;
 
-    Vector3 particles[1000];
+    Vector3* particles;
    
     Vector3 flowerPos[100] = {
         Vector3(10.0f, 0.0f, 0.0f),
@@ -229,6 +245,13 @@ protected:
         Vector3(1200.0f, 75.0f, -400.0f)
     };
 
+    Vector3 camerapos[5] = {
+        Vector3(0.15f, 2.0f, 0.2f),
+        Vector3(0.15f, 4.0f, 0.8f),
+        Vector3(0.3f, 3.0f, 0.3f),
+        Vector3(0.8f, 3.0f, 0.6f),
+        Vector3(0.15f, 3.0f, 0.8f),
+    };
 
     Vector4 lerp(const Vector4& a, const Vector4& b, float t) {
         return t > 1.0f ? b : a + (b - a) * t;
